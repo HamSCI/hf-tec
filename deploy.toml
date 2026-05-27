@@ -114,3 +114,16 @@ packages = [
     "python3-venv",
     "python3-pip",
 ]
+
+# ---------------------------------------------------------------------------
+# Sigmond UI hooks (drop-in registration for `smd watch` + TUI Activity).
+# Consumed by lib/sigmond/client_features.py — without this block the
+# client wouldn't appear in `smd tui` Monitoring → Activity, even if the
+# CLI verb is implemented.
+# ---------------------------------------------------------------------------
+
+[client_features.watch]
+verb         = "hf-gps-tec"
+description  = "hf-gps-tec PRN-beacon detection records (per freq/window)"
+verbose      = true
+per_instance = true

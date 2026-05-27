@@ -1,20 +1,30 @@
 """HfGpsTecSource — wideband I/Q ingest from radiod via ka9q-python.
 
-One channel per Tx frequency, ≈100 kS/s complex I/Q.  Frames are
-emitted at the code-period boundary (100 ms / 10,000 samples by
-default), timestamped with the RTP-anchored UTC of the frame's first
-sample (per the sigmond timing-authority invariant: never use the
-host wall clock).
+Subscribes to one ka9q-radio channel per Tx frequency.  Provisioned
+dynamically through ``RadiodControl.ensure_channel`` so radiod does
+not need a static channel fragment — adding a frequency to the
+recorder config is sufficient.  Frames are emitted at the code-period
+boundary (10,000 samples at 100 kS/s = 100 ms by default),
+timestamped with the receive-side anchor (RTP-derived UTC is future
+work; for now the host wall clock is used with a warning).
 
-ka9q-python is the only mandatory runtime dependency for live capture.
-For tests we use the synthetic `IqFrameSource` protocol below, which
-the daemon also accepts so unit tests can feed canned data without
-touching the network.
+ka9q-python is the only mandatory runtime dependency for live
+capture; it is lazy-imported so the rest of the package (config,
+contract, tests) remains usable without it.
+
+Implementation follows the codar-sounder reference: provision via
+``RadiodControl.ensure_channel(encoding=4, ...)`` (F32LE) to avoid an
+S16BE byte-swap pathology in the ka9q-python / radiod combination
+deployed on the suite hosts; sample-sanitise NaN / overflow values
+produced by the resequencer's gap-fill regions to zero so they
+cannot poison the autocorrelation downstream.
 """
 
 from __future__ import annotations
 
 import logging
+import queue as _q
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Iterator, Optional, Protocol
@@ -32,7 +42,7 @@ class IqFrame:
     sample_rate_hz: int
     samples: np.ndarray            # complex64, shape (n_samples,)
     timestamp_utc: datetime
-    rtp_anchor_ns: Optional[int] = None   # RTP-anchored UTC ns (preferred)
+    rtp_anchor_ns: Optional[int] = None
     radiod_id: str = ""
 
 
@@ -44,100 +54,165 @@ class IqFrameSource(Protocol):
 
 
 # ---------------------------------------------------------------------------
-# Live source — ka9q-python MultiStream
+# Live source — ka9q-python RadiodControl + RadiodStream
 # ---------------------------------------------------------------------------
 
 
 @dataclass
 class HfGpsTecSource:
-    """Live RTP I/Q source for one Tx frequency.
-
-    Lazy-imports ka9q-python so the rest of the package (config,
-    contract, tests) can be exercised without it.
-    """
-    radiod_status: str        # mDNS hostname of the radiod
+    """Live RTP I/Q source for one Tx frequency."""
+    radiod_status: str            # mDNS hostname of the radiod
     frequency_hz: int
     sample_rate_hz: int = 100_000
     filter_guard_hz: int = 1500
     frame_n_samples: int = 10_000
     client_id: str = "hf-gps-tec"
     radiod_id: str = ""
+    preset: str = "iq"
+
+    _control: object = field(default=None, init=False, repr=False)
     _stream: object = field(default=None, init=False, repr=False)
+    _channel_info: object = field(default=None, init=False, repr=False)
+    _sample_queue: object = field(default=None, init=False, repr=False)
+    _stopped: threading.Event = field(default_factory=threading.Event, init=False, repr=False)
+    _anchor_first_rtp: Optional[int] = field(default=None, init=False, repr=False)
+
+    # ---- ka9q lazy import ---------------------------------------------------
+
+    @staticmethod
+    def _import_ka9q():
+        from ka9q.control import RadiodControl    # type: ignore[import-not-found]
+        from ka9q.stream import RadiodStream      # type: ignore[import-not-found]
+        return RadiodControl, RadiodStream
+
+    # ---- lifecycle ----------------------------------------------------------
 
     def open(self) -> None:
-        try:
-            from ka9q import MultiStream  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise RuntimeError(
-                "ka9q-python is required for live I/Q capture; "
-                "install with `uv sync` or run with a stub IqFrameSource."
-            ) from exc
+        if self._stream is not None:
+            return
+        RadiodControl, RadiodStream = self._import_ka9q()
 
         nyquist = self.sample_rate_hz // 2
         low_edge = -(nyquist - self.filter_guard_hz)
         high_edge = +(nyquist - self.filter_guard_hz)
 
         logger.info(
-            "opening ka9q channel: status=%s freq=%d sr=%d filter=±%d Hz",
+            "opening ka9q channel: status=%s freq=%d sr=%d filter=[%+d,%+d] Hz "
+            "preset=%s encoding=F32LE",
             self.radiod_status, self.frequency_hz, self.sample_rate_hz,
-            nyquist - self.filter_guard_hz,
+            low_edge, high_edge, self.preset,
         )
-        self._stream = MultiStream(
-            status=self.radiod_status,
-            frequency=self.frequency_hz,
-            sample_rate=self.sample_rate_hz,
-            preset="iq",
+
+        # client_id makes ka9q-python derive a per-(client, radiod)
+        # multicast destination so this stream doesn't share a multicast
+        # group with peer clients on the same radiod.  CONTRACT v0.3 §7 /
+        # ka9q-python ≥ 3.14.0.
+        self._control = RadiodControl(
+            self.radiod_status,
             client_id=self.client_id,
-            low_edge=low_edge,
-            high_edge=high_edge,
+        )
+        # Force F32LE (encoding=4) IQ.  ka9q-python's default S16BE
+        # delivers byte-swap-corrupted samples on these hosts
+        # (codar-sounder learned this the hard way).
+        self._channel_info = self._control.ensure_channel(
+            frequency_hz=float(self.frequency_hz),
+            preset=self.preset,
+            sample_rate=int(self.sample_rate_hz),
+            encoding=4,                # F32LE
+            low_edge=float(low_edge),
+            high_edge=float(high_edge),
+        )
+        logger.info(
+            "channel ready: ssrc=%s mcast=%s:%d",
+            getattr(self._channel_info, "ssrc", "?"),
+            getattr(self._channel_info, "multicast_address", "?"),
+            getattr(self._channel_info, "port", 0),
         )
 
-    def frames(self) -> Iterator[IqFrame]:
-        """Yield one IqFrame per code period."""
-        if self._stream is None:
-            self.open()
-        assert self._stream is not None  # noqa: S101
-
-        buffer = np.empty(0, dtype=np.complex64)
-        first_sample_ns: Optional[int] = None
-
-        for chunk in self._stream:  # type: ignore[attr-defined]
-            samples = np.asarray(chunk.samples, dtype=np.complex64)
-            chunk_ns = getattr(chunk, "rtp_anchor_ns", None)
-            if first_sample_ns is None and chunk_ns is not None:
-                first_sample_ns = chunk_ns
-            buffer = np.concatenate([buffer, samples]) if buffer.size else samples
-
-            while buffer.size >= self.frame_n_samples:
-                frame_samples = buffer[: self.frame_n_samples].copy()
-                buffer = buffer[self.frame_n_samples :]
-                if first_sample_ns is not None:
-                    ts = datetime.fromtimestamp(first_sample_ns / 1e9, tz=timezone.utc)
-                else:
-                    # Fallback: host clock.  Inferior to RTP-anchored — emit a
-                    # warning so this doesn't go unnoticed in production.
-                    ts = datetime.now(tz=timezone.utc)
-                    logger.warning(
-                        "no RTP anchor available for frame; using host clock "
-                        "(timing-authority invariant violation)"
-                    )
-                yield IqFrame(
-                    frequency_hz=self.frequency_hz,
-                    sample_rate_hz=self.sample_rate_hz,
-                    samples=frame_samples,
-                    timestamp_utc=ts,
-                    rtp_anchor_ns=first_sample_ns,
-                    radiod_id=self.radiod_id,
-                )
-                if first_sample_ns is not None:
-                    first_sample_ns += int(
-                        self.frame_n_samples * 1e9 / self.sample_rate_hz
-                    )
+        # Bounded queue.  ka9q delivers ~30 ms batches; 64 entries ≈ 2 s
+        # of buffering — enough for jitter, not enough to mask a real
+        # backlog.
+        self._sample_queue = _q.Queue(maxsize=64)
+        self._stream = RadiodStream(
+            channel=self._channel_info,
+            on_samples=self._on_samples,
+        )
+        self._stream.start()
 
     def close(self) -> None:
-        if self._stream is not None:
+        self._stopped.set()
+        try:
+            if self._stream is not None and hasattr(self._stream, "stop"):
+                self._stream.stop()
+        except Exception:
+            logger.exception("ka9q stream stop failed")
+        self._stream = None
+
+    # ---- ka9q callback ------------------------------------------------------
+
+    def _on_samples(self, samples, quality) -> None:
+        """Runs on the ka9q-python RX thread."""
+        if self._stopped.is_set():
+            return
+        if self._anchor_first_rtp is None:
+            first_rtp = getattr(quality, "first_rtp_timestamp", None)
+            if first_rtp is not None:
+                self._anchor_first_rtp = int(first_rtp)
+        arr = np.asarray(samples, dtype=np.complex64)
+        # Resequencer-garbage sanitisation (codar-sounder lessons): NaN
+        # and overflow values would poison the autocorrelation downstream.
+        if not np.all(np.isfinite(arr)):
+            arr = np.where(np.isfinite(arr), arr, np.complex64(0))
+        too_large = np.abs(arr) > 100.0
+        if np.any(too_large):
+            arr = np.where(too_large, np.complex64(0), arr)
+        try:
+            self._sample_queue.put_nowait(arr)
+        except Exception:
             try:
-                self._stream.close()  # type: ignore[attr-defined]
+                self._sample_queue.get_nowait()
+                self._sample_queue.put_nowait(arr)
+                logger.warning("sample queue full at %d Hz; dropped oldest",
+                               self.frequency_hz)
             except Exception:
-                logger.exception("ka9q stream close failed")
-            self._stream = None
+                pass
+
+    # ---- frame iterator -----------------------------------------------------
+
+    def frames(self) -> Iterator[IqFrame]:
+        """Yield one IqFrame per code period.
+
+        Frames are accumulated from the streaming sample queue.  Each
+        frame is exactly ``frame_n_samples`` complex64 samples.
+        """
+        if self._stream is None:
+            self.open()
+        assert self._sample_queue is not None  # noqa: S101
+
+        buf = np.empty(self.frame_n_samples, dtype=np.complex64)
+        filled = 0
+
+        while not self._stopped.is_set():
+            try:
+                chunk = self._sample_queue.get(timeout=1.0)
+            except Exception:
+                continue
+            idx = 0
+            while idx < chunk.size:
+                take = min(chunk.size - idx, self.frame_n_samples - filled)
+                buf[filled : filled + take] = chunk[idx : idx + take]
+                filled += take
+                idx += take
+                if filled == self.frame_n_samples:
+                    # Frame ready.  Host wall-clock anchor for first-light.
+                    # RTP-derived UTC (via hf-timestd authority) is future work.
+                    ts = datetime.now(tz=timezone.utc)
+                    yield IqFrame(
+                        frequency_hz=self.frequency_hz,
+                        sample_rate_hz=self.sample_rate_hz,
+                        samples=buf.copy(),
+                        timestamp_utc=ts,
+                        rtp_anchor_ns=self._anchor_first_rtp,
+                        radiod_id=self.radiod_id,
+                    )
+                    filled = 0

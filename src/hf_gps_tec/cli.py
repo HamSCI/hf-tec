@@ -56,32 +56,69 @@ def _handle_version(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _degraded_inventory_payload(reason: str) -> dict:
+    """A minimal-but-contract-shaped inventory payload printed when
+    config can't be read.  Sigmond's ContractAdapter checks for
+    parseable JSON + exit 0 to set `installed = True`, so this lets an
+    unprivileged operator's `smd config show` correctly report the
+    client as installed (with an issues entry explaining the degraded
+    state) instead of "not installed"."""
+    return {
+        "client": "hf-gps-tec",
+        "version": __version__,
+        "git": dict(GIT_INFO),
+        "contract_version": CONTRACT_VERSION,
+        "config_path": None,
+        "log_paths": {
+            "journal": "hf-gps-tec@*",
+            "file_dir": "/var/log/hf-gps-tec",
+        },
+        "log_level": os.environ.get("HF_GPS_TEC_LOG_LEVEL")
+        or os.environ.get("CLIENT_LOG_LEVEL")
+        or "INFO",
+        "instances": [],
+        "deps": {"git": [], "pypi": []},
+        "issues": [{
+            "severity": "fail",
+            "instance": None,
+            "message": reason,
+        }],
+    }
+
+
 def _load_cfg(args: argparse.Namespace) -> Config | None:
+    """Load config; on FileNotFoundError or PermissionError print a
+    contract-shaped degraded payload (issues populated) and return
+    None.  Callers decide the exit code: `inventory` exits 0 (sigmond
+    needs to learn the client is installed), `validate` exits 1
+    (cannot certify health without reading config)."""
     try:
         return load_config(
             path=Path(args.config) if args.config else None,
             instance=args.instance,
         )
     except FileNotFoundError as exc:
-        payload = {
-            "client": "hf-gps-tec",
-            "version": __version__,
-            "contract_version": CONTRACT_VERSION,
-            "instances": [],
-            "issues": [{
-                "severity": "fail",
-                "instance": None,
-                "message": f"config not found: {exc}",
-            }],
-        }
-        print(json.dumps(payload, indent=2))
+        print(json.dumps(_degraded_inventory_payload(
+            f"config not found: {exc}"), indent=2))
+        return None
+    except PermissionError as exc:
+        # Service-user-owned config (mode 0640) is unreadable by an
+        # unprivileged operator running `smd config show`.  The client
+        # IS installed; the caller just can't see runtime details.
+        print(json.dumps(_degraded_inventory_payload(
+            f"config not readable by uid={os.getuid()}: {exc} "
+            f"— inventory degraded"), indent=2))
         return None
 
 
 def _handle_inventory(args: argparse.Namespace) -> int:
     cfg = _load_cfg(args)
     if cfg is None:
-        return 1
+        # Degraded payload was already printed by _load_cfg.  Exit 0 so
+        # sigmond's ContractAdapter parses it and marks `installed=True`
+        # — without this the operator-facing `smd config show` reports
+        # "not installed" for a client that very much is.
+        return 0
     stations = load_stations(Path(args.stations) if args.stations else None)
     print(json.dumps(build_inventory(cfg, stations), indent=2))
     return 0

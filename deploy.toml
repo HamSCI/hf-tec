@@ -57,9 +57,18 @@ owner     = "hfgpstec:hfgpstec"
 if_absent = true
 
 [[install.steps]]
+kind  = "mkdir"
+dst   = "/etc/hf-gps-tec/data"
+mode  = "0755"
+owner = "hfgpstec:hfgpstec"
+
+# stations.toml lives in a data/ subdirectory so sigmond's per-instance
+# scanner — which globs /etc/<client>/*.toml — does not misread it as
+# the "stations" instance.
+[[install.steps]]
 kind      = "render"
 src       = "data/stations.toml"
-dst       = "/etc/hf-gps-tec/stations.toml"
+dst       = "/etc/hf-gps-tec/data/stations.toml"
 mode      = "0644"
 owner     = "hfgpstec:hfgpstec"
 if_absent = true

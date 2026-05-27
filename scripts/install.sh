@@ -116,10 +116,20 @@ if [[ ! -e "${CONF_DIR}/hf-gps-tec-config.toml" ]]; then
         "${REPO_ROOT}/config/hf-gps-tec-config.toml.template" \
         "${CONF_DIR}/hf-gps-tec-config.toml"
 fi
-if [[ ! -e "${CONF_DIR}/stations.toml" ]]; then
+# stations.toml lives in a subdirectory so sigmond's per-instance
+# scanner (lifecycle.py globs /etc/<client>/*.toml) does not misread
+# it as a "stations" instance.
+install -d -m 0755 -o "${USER}" -g "${GROUP}" "${CONF_DIR}/data"
+if [[ ! -e "${CONF_DIR}/data/stations.toml" ]]; then
     install -m 0644 -o "${USER}" -g "${GROUP}" \
         "${REPO_ROOT}/data/stations.toml" \
-        "${CONF_DIR}/stations.toml"
+        "${CONF_DIR}/data/stations.toml"
+fi
+# Migrate any legacy top-level stations.toml — pre-fix installs left
+# it where the instance scanner picks it up.  Move it under data/ if
+# the new location doesn't already exist.
+if [[ -f "${CONF_DIR}/stations.toml" && ! -e "${CONF_DIR}/data/stations.toml" ]]; then
+    mv "${CONF_DIR}/stations.toml" "${CONF_DIR}/data/stations.toml"
 fi
 
 # ---------------------------------------------------------------------------

@@ -223,6 +223,29 @@ def build_parser() -> argparse.ArgumentParser:
     # systemd template's @<reporter-id> ≡ --instance, and the radiod
     # binding is config-driven via the [ka9q] block.
 
+    # Config command — CLIENT-CONTRACT §14 JSON-roundtrip surface.
+    # Sigmond's in-TUI Textual wizard needs `show --json` + `apply
+    # --json -`.  hf-gps-tec had no `config` subcommand at all
+    # before this; $EDITOR fallback (via `smd config edit` shellout)
+    # is the only edit path otherwise.
+    p_cfg = sub.add_parser("config",
+        help="Config show/apply (sigmond client-contract §14)")
+    cfg_sub = p_cfg.add_subparsers(dest="config_command")
+
+    p_show = cfg_sub.add_parser("show",
+        help="Emit current config (TOML→JSON) on stdout")
+    p_show.add_argument("--json", action="store_true", default=True)
+    p_show.add_argument("--defaults", action="store_true",
+        help="(accepted for forward-compat; currently a no-op)")
+    _add_config_args(p_show)
+
+    p_apply = cfg_sub.add_parser("apply",
+        help="Apply a JSON payload (from stdin) to the config")
+    p_apply.add_argument("--json", action="store_true", default=True)
+    p_apply.add_argument("input", nargs="?", default="-",
+        help="JSON payload path or `-` for stdin (default)")
+    _add_config_args(p_apply)
+
     return p
 
 
@@ -240,8 +263,21 @@ def main(argv: list[str] | None = None) -> int:
         "validate":  _handle_validate,
         "status":    _handle_status,
         "daemon":    _handle_daemon,
+        "config":    _handle_config,
     }
     return handlers[args.command](args)
+
+
+def _handle_config(args: argparse.Namespace) -> int:
+    """Dispatch `config {show|apply}` (CLIENT-CONTRACT §14)."""
+    from . import configurator
+    sub = getattr(args, "config_command", None)
+    if sub == "show":
+        return configurator.cmd_config_show(args)
+    if sub == "apply":
+        return configurator.cmd_config_apply(args)
+    print("usage: hf-gps-tec config {show|apply}", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

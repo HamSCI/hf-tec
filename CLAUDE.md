@@ -31,17 +31,17 @@ Documentation layout:
 
 ## Status
 
-**v0.1.0 — scaffolding.**  Full DSP pipeline structured but PRN code
-generator is stubbed (deterministic ±1 sequence keyed on Tx ID, not
-the real Hysell codes).  Awaiting two specs from the JRO team:
+**v0.1.0 — scaffolding, locked-mode-capable as of 2026-05-29.**
+Full DSP pipeline structured.  Hysell's per-station PRN generator
+is wired in (`core/correlate.py:generate_prn_code`); the recorder
+defaults to locked mode.  Per-Tx seeds in `data/stations.toml`:
+Poker Flat = 0, Gakona = 1, Palmer = 2.  Cornell is still planned
+and has no seed assigned, so the pipeline skips it with a warning.
 
-1. PRN generator polynomial + seed per (transmitter, frequency).
-2. UTC code-epoch alignment rule (presumed: each 100 ms code period
-   starts on a 100-ms-aligned UTC tick).
-
-See `docs/RECEIVER.md` §6 for the full gap list.  Once supplied,
-only `core/correlate.py:generate_prn_code()` needs to be replaced
-to make the recorder lock to real over-the-air signals.
+Outstanding from `docs/RECEIVER.md` §6: amplitude calibration
+reference (lower priority — only affects cross-receiver
+comparison, not the per-receiver inversion).  All other
+previously-open gaps are closed.
 
 ## Authors
 
@@ -73,13 +73,13 @@ hf-gps-tec daemon --config /etc/hf-gps-tec/hf-gps-tec-config.toml --radiod-id my
 
 ```
 radiod (ka9q-radio, IQ preset)
-  │  one channel per known Tx frequency (typically 2.72 + 3.64 MHz)
+  │  one channel per known Tx frequency (2.9 + 3.4 MHz)
   │  ka9q-python ensure_channel(low_edge, high_edge) → ~100 kHz BW,
   │  100 kS/s decimated I/Q
   ▼
 hf-gps-tec daemon (one per radiod, = one systemd instance)
   │
-  ├─ FreqPipeline(2.72 MHz)
+  ├─ FreqPipeline(2.9 MHz)
   │    ├─ ka9q.MultiStream subscription → 100 ms frames (10,000 samples)
   │    ├─ ReplicaBank: one PRN replica per known Tx, precomputed FFT
   │    ├─ correlate frame against every replica in parallel (FFT-based)
@@ -87,7 +87,7 @@ hf-gps-tec daemon (one per radiod, = one systemd instance)
   │    ├─ slow-time FFT → range-Doppler matrix per Tx
   │    ├─ 6 × 10-s power averaging (1 min incoherent integration)
   │    └─ first-hop detector → (pseudorange, Doppler, amplitude) per Tx
-  ├─ FreqPipeline(3.64 MHz)
+  ├─ FreqPipeline(3.4 MHz)
   ▼
 Output (core/output.py)
   │   one JSONL record per (Tx, Rx, freq) per minute
@@ -117,9 +117,9 @@ tests/                # config / contract / correlator / detector tests
 config/
   hf-gps-tec-config.toml.template
 data/
-  stations.toml       # network topology — current Tx (Fairbanks + planned
-                      # Cornell); historical Peru deployment retained for
-                      # reference in the file comments
+  stations.toml       # network topology — three Alaska Tx (Poker Flat,
+                      # Gakona, Palmer) + planned Cornell; per-site
+                      # prn_seed required for locked-mode correlation
 systemd/
   hf-gps-tec@.service  # Template unit; %i = radiod_id
 scripts/

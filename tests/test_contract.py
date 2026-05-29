@@ -35,11 +35,27 @@ def test_inventory_required_fields() -> None:
         assert key in inst, f"missing inventory field: {key}"
 
 
-def test_inventory_surfaces_prn_stub_warning() -> None:
-    """While PRN_IS_STUB=True, inventory must warn so an operator can see it."""
+def test_inventory_surfaces_prn_stub_warning(monkeypatch) -> None:
+    """When PRN_IS_STUB=True, inventory must warn so operators see it.
+
+    Hysell's real generator is wired in (2026-05-29), so the flag is
+    normally False — monkeypatch it back to True to verify the contract
+    surface would still raise the alarm if the generator ever regressed
+    to a stub.
+    """
+    from hf_gps_tec.core import correlate as cc
+    monkeypatch.setattr(cc, "PRN_IS_STUB", True)
     inv = contract.build_inventory(_load_default_cfg(), _load_default_stations())
     messages = " | ".join(i.get("message", "") for i in inv.get("issues", []))
     assert "PRN" in messages and "STUB" in messages
+
+
+def test_inventory_no_prn_warning_when_real_generator_wired() -> None:
+    """With the Hysell generator in place (PRN_IS_STUB=False), the
+    codeless-mode warning must NOT appear in the inventory issues."""
+    inv = contract.build_inventory(_load_default_cfg(), _load_default_stations())
+    messages = " | ".join(i.get("message", "") for i in inv.get("issues", []))
+    assert "STUB" not in messages
 
 
 def test_validate_ok_with_template() -> None:

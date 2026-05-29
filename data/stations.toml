@@ -14,24 +14,56 @@
 # receiver identifies itself via the `[station]` block in the main
 # config file.
 #
-# NOTE: exact transmitter coordinates below are city-centre
-# approximations pending confirmation from Dr. Hysell; refine
-# before scientific use.
+# Source for the current entries: direct correspondence with
+# Dr. Hysell, 2026-05-29 (forwarded by AC0G).
 
 # ---------------------------------------------------------------------------
 # Transmit sites
 # ---------------------------------------------------------------------------
+#
+# All three Alaska sites emit both frequencies simultaneously and use
+# a distinct per-site PRN seed (passed to Hysell's
+# `create_pseudo_random_code(clen, seed)` routine).  The seed→site
+# mapping is canonical — do not renumber.
 
-[transmitters.FAIRBANKS]
-name           = "Fairbanks, Alaska"
-status         = "operational"   # only currently-operating transmitter
-latitude_deg   = 64.8378
-longitude_deg  = -147.7164
-altitude_m     = 136.0
-power_watts    = 0.5             # per-frequency continuous power
+[transmitters.POKER_FLAT]
+name           = "Poker Flat, Alaska"
+status         = "operational"
+# 65° 07' 03" N, 147° 25' 55" W  (Hysell, 2026-05-29).
+latitude_deg   = 65.1175
+longitude_deg  = -147.4319
+altitude_m     = 0.0              # to-confirm
+power_watts    = 0.5              # per-frequency continuous power
 antenna        = "inverted-V (assumed; confirm with operator)"
-frequencies_hz = [2_720_000, 3_640_000]
-notes          = "Coordinates are city-centre approximation; the actual transmitter site (likely on or near University of Alaska Fairbanks infrastructure) should be substituted before scientific use."
+frequencies_hz = [2_900_000, 3_400_000]
+prn_seed       = 0
+notes          = "Coordinates provided by Dr. Hysell (DMS converted)."
+
+[transmitters.GAKONA]
+name           = "Gakona, Alaska"
+status         = "operational"
+# 62° 23' 21" N, 145° 08' 09" W  (Hysell, 2026-05-29).
+latitude_deg   = 62.3892
+longitude_deg  = -145.1358
+altitude_m     = 0.0              # to-confirm
+power_watts    = 0.5
+antenna        = "inverted-V (assumed; confirm with operator)"
+frequencies_hz = [2_900_000, 3_400_000]
+prn_seed       = 1
+notes          = "Coordinates provided by Dr. Hysell (DMS converted)."
+
+[transmitters.PALMER]
+name           = "Palmer, Alaska"
+status         = "down-for-maintenance"
+# 61° 33' 56" N, 149° 15' 06" W  (Hysell, 2026-05-29).
+latitude_deg   = 61.5656
+longitude_deg  = -149.2517
+altitude_m     = 0.0              # to-confirm
+power_watts    = 0.5
+antenna        = "inverted-V (assumed; confirm with operator)"
+frequencies_hz = [2_900_000, 3_400_000]
+prn_seed       = 2
+notes          = "Down for maintenance as of 2026-05-29.  Dr. Hysell plans an on-site repair visit in July 2026.  Leaving the entry enabled is harmless — correlating against a not-yet-on-air Tx simply produces no detection."
 
 [transmitters.CORNELL]
 name           = "Ithaca, New York (Cornell University)"
@@ -41,8 +73,9 @@ longitude_deg  = -76.4735
 altitude_m     = 250.0
 power_watts    = 0.5
 antenna        = "inverted-V (assumed; confirm with operator)"
-frequencies_hz = [2_720_000, 3_640_000]
-notes          = "Planned second transmitter; not yet on-air.  Coordinates are approximate Cornell campus position pending confirmation of the actual transmit site."
+frequencies_hz = [2_900_000, 3_400_000]
+# prn_seed     = ?                # assign when this Tx comes online
+notes          = "Planned second-region transmitter (Hysell's home institution); not yet on-air.  Coordinates are approximate Cornell campus position pending confirmation of the actual transmit site."
 
 # ---------------------------------------------------------------------------
 # Receive sites

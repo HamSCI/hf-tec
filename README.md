@@ -13,7 +13,8 @@ documented by Hysell et al. (2018) and Aricoche & Hysell (2024).
 That network's first generation operated in Peru; the current
 operational transmit network is being established in North
 America under Dr. David Hysell's leadership at Cornell University,
-with one transmitter on-air at Fairbanks, Alaska and a second
+with three transmitters in Alaska (Poker Flat and Gakona on-air;
+Palmer down for a July 2026 maintenance visit) and a fourth
 planned at Ithaca, New York.  See [`docs/OVERVIEW.md`](docs/OVERVIEW.md) §3
 for details.
 
@@ -23,20 +24,19 @@ for details.
 pipeline implemented and tested with synthetic signals.  Two
 operating modes are available:
 
-- **codeless** (default while the PRN code generator is stubbed) —
-  100-ms-autocorrelation detector confirms beacon presence and
-  recovers Doppler shift without needing the per-transmitter PRN
+- **codeless** — 100-ms-autocorrelation detector confirms beacon
+  presence and recovers Doppler shift without using the PRN
   code.  Suitable for first-light "is the signal getting here?"
   tests.  Records emitted to
   `/var/lib/hf-gps-tec/<radiod>/codeless/`.
-- **locked** — full PRN correlator (per-transmitter pseudorange +
-  Doppler + amplitude).  Activates automatically once the real PRN
-  spec is wired into `core/correlate.py:generate_prn_code()`;
-  records go to `/var/lib/hf-gps-tec/<radiod>/locked/`.
+- **locked** (default) — full PRN correlator (per-transmitter
+  pseudorange + Doppler + amplitude).  Records go to
+  `/var/lib/hf-gps-tec/<radiod>/locked/`.
 
 Mode selection is controlled by the `[mode]` block in the config
 (`auto`, `codeless`, or `locked`); the default `auto` setting
-picks based on whether the PRN code is a stub.
+resolves to `locked` now that Hysell's per-station PRN generator
+is wired in (2026-05-29).
 
 ## Install
 

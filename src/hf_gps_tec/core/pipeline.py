@@ -57,8 +57,17 @@ class FreqPipeline:
             samples_per_chip=samples_per_chip,
         )
         enabled_tx = self._enabled_transmitters_at_freq()
+        wired_tx: list[Station] = []
         for tx in enabled_tx:
-            self._bank.add(tx.site_id, self.freq_cfg.center_hz)
+            if tx.prn_seed is None:
+                logger.warning(
+                    "FreqPipeline[%d Hz]: skipping transmitter %s "
+                    "(no prn_seed in stations DB) — add `prn_seed = N` "
+                    "to its [transmitters.%s] block before enabling.",
+                    self.freq_cfg.center_hz, tx.site_id, tx.site_id,
+                )
+                continue
+            self._bank.add(tx.site_id, self.freq_cfg.center_hz, prn_seed=tx.prn_seed)
             self._coherent[tx.site_id] = CoherentStack(
                 n_reps=proc.coherent_reps,
                 n_range_bins=proc.code_chips,
@@ -66,10 +75,11 @@ class FreqPipeline:
             self._incoherent[tx.site_id] = IncoherentAccumulator(
                 n_windows=proc.incoherent_windows,
             )
+            wired_tx.append(tx)
         logger.info(
             "FreqPipeline[%d Hz] ready: %d transmitter(s): %s",
-            self.freq_cfg.center_hz, len(enabled_tx),
-            ", ".join(t.site_id for t in enabled_tx),
+            self.freq_cfg.center_hz, len(wired_tx),
+            ", ".join(t.site_id for t in wired_tx),
         )
 
     def _enabled_transmitters_at_freq(self) -> list[Station]:

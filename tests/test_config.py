@@ -21,8 +21,8 @@ def test_template_loads_cleanly(tmp_path: Path) -> None:
     cfg = cfgmod.load_config(REPO_TEMPLATE)
     assert cfg.station.station_id == "AC0G-HFB"
     assert len(cfg.frequencies) == 2
-    assert {f.center_hz for f in cfg.frequencies} == {2_720_000, 3_640_000}
-    assert cfg.transmitters_enabled == ("FAIRBANKS", "CORNELL")
+    assert {f.center_hz for f in cfg.frequencies} == {2_900_000, 3_400_000}
+    assert cfg.transmitters_enabled == ("POKER_FLAT", "GAKONA", "PALMER", "CORNELL")
 
 
 def test_processing_consistency_checks_present(tmp_path: Path) -> None:

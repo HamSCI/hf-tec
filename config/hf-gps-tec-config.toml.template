@@ -29,27 +29,45 @@ operator_callsign = ""
 status_address = ""
 
 # Per-frequency channel bandwidth.  100 kHz total (±50 kHz around carrier)
-# matches the Hysell 2018 §2 decimated rate.  Increase only if the operator
-# knows the local radiod can serve it.
+# matches the Hysell 2018 §2 decimated rate AND the current 10-µs-chip
+# Alaska transmissions.  Hysell's planned migration to 20-µs chips
+# (50 kHz BW) will allow this to drop to 50 kHz total; see [processing]
+# below for the cutover plan.  Increase only if the operator knows the
+# local radiod can serve it.
 filter_guard_hz = 1500
 
 # ---------------------------------------------------------------------------
 # Frequency plan — which Tx frequencies this receiver subscribes to.
 # Each entry opens one ka9q-radio channel.
+#
+# Present-day Alaska network carriers (Hysell, 2026-05-29).  Both
+# frequencies are emitted simultaneously from each transmit site.
 # ---------------------------------------------------------------------------
 
 [[frequency]]
-center_hz       = 2_720_000
+center_hz       = 2_900_000
 sample_rate_hz  = 100_000
 enabled         = true
 
 [[frequency]]
-center_hz       = 3_640_000
+center_hz       = 3_400_000
 sample_rate_hz  = 100_000
 enabled         = true
 
 # ---------------------------------------------------------------------------
-# Processing parameters (Hysell 2018 §2 defaults).
+# Processing parameters.
+#
+# Present-day Alaska network (Hysell, 2026-05-29):
+#   chip_microseconds = 10, code_chips = 10_000, 100 kHz BW.
+#
+# Planned migration (Hysell believes 100 kHz "probably exceeds the
+# channel capacity much of the time"):
+#   chip_microseconds = 20, code_chips =  5_000,  50 kHz BW.
+# code_period_ms stays at 100 — flip chip_microseconds and code_chips
+# together, then drop both [[frequency]] sample_rate_hz blocks to
+# 50_000 and reduce filter_guard_hz accordingly.  Do not change one
+# without the others — pipeline samples_per_chip must remain a
+# positive integer.
 # ---------------------------------------------------------------------------
 
 [processing]
@@ -72,33 +90,37 @@ codeless_detection_threshold_db = 6.0
 
 # ---------------------------------------------------------------------------
 # Transmitter list — which Tx the correlator banks against.  Names must
-# match entries in /etc/hf-gps-tec/stations.toml.
+# match entries in /etc/hf-gps-tec/data/stations.toml.
 #
-# Currently only FAIRBANKS is on-air.  CORNELL is planned; leave it in
-# the list if you want the recorder to have a replica ready as soon as
-# that transmitter comes up — correlating against a not-yet-operational
-# Tx is harmless (the receiver simply sees no peak and emits no
-# detection for it).
+# As of 2026-05-29 (Hysell): POKER_FLAT and GAKONA are operational;
+# PALMER is down for maintenance with an on-site repair visit planned
+# in July 2026; CORNELL is planned as a second-region Tx and not yet
+# on-air.  Leaving down or planned sites in the list is harmless —
+# the recorder simply sees no peak for them.  CORNELL has no PRN seed
+# assigned yet, so the pipeline will log a warning and skip it until
+# Hysell publishes that site's seed.
 # ---------------------------------------------------------------------------
 
 [transmitters]
-enabled = ["FAIRBANKS", "CORNELL"]
+enabled = ["POKER_FLAT", "GAKONA", "PALMER", "CORNELL"]
 
 # ---------------------------------------------------------------------------
 # Operating mode.
 #
-#   "auto"     — pick automatically: codeless when the PRN code
-#                generator is stubbed, locked otherwise.  Default.
+# Hysell's per-station PRN generator is wired in as of 2026-05-29,
+# so "auto" now resolves to "locked" by default.  Operators who want
+# the simpler beacon-presence check (e.g. first-light verification)
+# can still pin mode = "codeless" explicitly.
+#
+#   "auto"     — pick automatically: locked when the PRN generator
+#                is real (current state), codeless when it has been
+#                stubbed.  Default.
 #   "codeless" — run only the 100-ms autocorrelation detector.  No
 #                per-Tx pseudorange, but confirms beacon presence and
-#                recovers Doppler without knowing the PRN code.
-#                Useful while waiting for the per-Tx PRN spec from the
-#                network operator, or any time first-light verification
-#                is wanted.
+#                recovers Doppler without using the PRN code.
 #   "locked"   — run only the full PRN correlator.  Produces
 #                per-(Tx, Rx, freq) pseudorange / Doppler / amplitude
-#                records.  Requires the real PRN spec to be wired into
-#                core/correlate.py.
+#                records.
 # ---------------------------------------------------------------------------
 
 [mode]

@@ -37,6 +37,12 @@ class Station:
     power_watts: Optional[float] = None
     antenna: Optional[str] = None
     notes: Optional[str] = None
+    # Per-Tx integer seed passed to Hysell's
+    # create_pseudo_random_code(clen, seed) routine.  Required to
+    # generate the correct PRN replica for that transmitter; if None
+    # the recorder cannot correlate against this Tx and will skip it.
+    prn_seed: Optional[int] = None
+    status: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -68,6 +74,8 @@ def _parse_station(site_id: str, block: dict, kind: str) -> Station:
         power_watts=(float(block["power_watts"]) if "power_watts" in block else None),
         antenna=block.get("antenna"),
         notes=block.get("notes"),
+        prn_seed=(int(block["prn_seed"]) if "prn_seed" in block else None),
+        status=block.get("status"),
     )
 
 

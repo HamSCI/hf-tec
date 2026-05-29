@@ -42,15 +42,21 @@ no longer the active transmit infrastructure; the receive-side DSP
 chain described in this document is reused unchanged for the new
 deployment.
 
-**Current transmit sites** (North American deployment):
+**Current transmit sites** (North American deployment, per
+direct correspondence with Dr. Hysell, 2026-05-29):
 
-| Site                                                | Status      | Approximate location |
-|-----------------------------------------------------|-------------|------|
-| Fairbanks, Alaska                                   | operational | ≈ 64.84°N, −147.72°E |
-| Ithaca, New York (Cornell University)               | planned     | ≈ 42.45°N, −76.47°E  |
+| Site                                  | Status               | Location              | PRN seed |
+|---------------------------------------|----------------------|-----------------------|---------:|
+| Poker Flat, Alaska                    | operational          | 65.1175°N, −147.4319°E | 0       |
+| Gakona, Alaska                        | operational          | 62.3892°N, −145.1358°E | 1       |
+| Palmer, Alaska                        | down for maintenance | 61.5656°N, −149.2517°E | 2       |
+| Ithaca, New York (Cornell University) | planned              | ≈ 42.45°N, ≈ −76.47°E  | TBD     |
 
-Coordinates above are city-centre approximations pending
-confirmation from the network operator (see `data/stations.toml`).
+Palmer is down for maintenance as of 2026-05-29 with an on-site
+repair visit planned for July 2026.  Cornell is planned but not
+yet on-air; no PRN seed is assigned and the recorder will skip
+it with a warning.  See `data/stations.toml` for full
+coordinates and notes.
 
 Each transmit site radiates **0.5 W continuous power per frequency**
 into inverted-V antennas (per Hysell 2018 §2; carry-over from the
@@ -80,24 +86,45 @@ pseudorange would drift.
 
 ## 2. Signal waveform
 
-Both frequencies — **2.72 MHz and 3.64 MHz** — carry a
-**unique-per-transmitter binary phase-shift-keyed (BPSK) signal**
-modulated by a pseudorandom noise (PRN) code.
+Both frequencies — **2.9 MHz and 3.4 MHz** — carry a
+**unique-per-transmitter continuous-phase PSK signal** modulated
+by a pseudorandom noise (PRN) code (NOT BPSK — see below).
 
-Per Hysell 2018 §2:
+Per Hysell (direct correspondence, 2026-05-29) and Hysell 2018 §2:
 
-| Parameter                  | Value          | Derived |
-|----------------------------|----------------|---------|
-| Chip duration              | 10 µs          | Null-to-null bandwidth ≈ 100 kHz |
-| Compression ratio          | 10,000         | Code length = 10,000 chips |
-| Code repetition period     | 100 ms         | = 10,000 × 10 µs |
-| Modulation                 | Binary phase   | BPSK; per-chip phase ∈ {0, π} |
-| Code gain per Doppler bin  | 1 × 10⁶ (60 dB)| 10⁴ (chips) × 10² (coherent reps) |
+| Parameter                  | Present-day value | Planned value | Derived |
+|----------------------------|------------------|---------------|---------|
+| Chip duration              | 10 µs            | 20 µs         | Null-to-null BW ≈ 100 kHz (present) / 50 kHz (planned) |
+| Compression ratio          | 10 000           | 5 000         | Code length in chips |
+| Code repetition period     | 100 ms           | 100 ms        | = chips × chip duration |
+| Modulation                 | Continuous-phase PSK | (unchanged) | Per-chip complex symbol on unit circle, uniform phase |
+| Code gain per Doppler bin  | 1 × 10⁶ (60 dB)  | 5 × 10⁵ (≈57 dB) | chips × 10² (coherent reps) |
 
-The code per transmitter is **unique**; the receiver discriminates
-co-channel transmitters by correlating against each transmitter's
-distinct replica in parallel.  See §6 for what still needs to be
-specified about the code structure.
+**The PRN code is complex, not real BPSK.**  Hysell's reference
+generator `create_pseudo_random_code(clen, seed)` returns a length-
+`clen` array of unit-magnitude complex phases drawn uniformly from
+[0, 2π).  The receiver replica must therefore be complex; treating
+each chip as ±1 (BPSK) would mis-correlate.
+
+**Per-transmitter seeds** (canonical mapping, do not renumber):
+
+  - `seed=0` → Poker Flat
+  - `seed=1` → Gakona
+  - `seed=2` → Palmer
+  - Cornell — seed TBD when it comes on-air
+
+The receiver discriminates co-channel transmitters by correlating
+against each one's distinct replica in parallel.  Per Hysell
+(2026-05-29), the planned migration to 50 kHz BW reflects his
+view that 100 kHz "probably exceeds the channel capacity much of
+the time"; the cutover is a single configuration change in
+`hf-gps-tec-config.toml`.
+
+**Daytime D-region absorption.**  At 2.9/3.4 MHz the D-region
+nearly kills the signal during daylight hours.  At high northern
+latitudes in summer there is effectively no night, so receivers
+should expect little to no detection until autumn shortens the
+day.
 
 ## 3. Receiver DSP chain
 
@@ -126,7 +153,7 @@ The remaining DSP runs in Python.
 The chain matches Hysell §2 stage-for-stage:
 
 ```
-ka9q-radio channel @ 2.72 MHz (or 3.64 MHz), 100 kS/s complex I/Q
+ka9q-radio channel @ 2.9 MHz (or 3.4 MHz), 100 kS/s complex I/Q
   │
   ▼
 Frame to 100 ms blocks (10,000 samples) aligned to Coordinated
@@ -170,7 +197,7 @@ codar-sounder uses for the CODAR chirp band.
 
 ### 3.2 Doppler ambiguity vs ionospheric reality
 
-At 3.64 MHz, ±5 Hz of Doppler ambiguity corresponds to ±200 m/s
+At 3.4 MHz, ±5 Hz of Doppler ambiguity corresponds to ±220 m/s
 line-of-sight velocity, comfortably above any expected ionospheric
 Doppler in the equatorial F region (which Hysell 2024 reports as
 peaking near 30 m/s during the prereversal enhancement).  The 0.1 Hz
@@ -231,7 +258,7 @@ plus an additive row in sigmond's hf_gps_tec_codeless.spots
   — the autocorrelation magnitude is far above the floor when
   any such beacon is reaching the receiver.
 - Doppler shift, unambiguous within ±5 Hz (= ±200 m/s
-  line-of-sight at 3.64 MHz).
+  line-of-sight at 3.4 MHz).
 - Rough received-SNR estimate.
 - Band-power time series — directly useful as a propagation
   monitor.
@@ -257,11 +284,14 @@ code-free modes from `[mode] mode` in the config:
 
 - `auto` — code-free when `correlate.PRN_IS_STUB` is `True`,
   locked otherwise.  This is the default and the recommended
-  setting; the daemon automatically upgrades to locked mode the
-  moment the real PRN code is wired in.
-- `codeless` — always code-free.
-- `locked` — always locked (will produce records derived from
-  a fake code if the PRN is still stubbed; not useful).
+  setting.  Since Hysell's real generator landed on 2026-05-29,
+  `auto` now resolves to `locked` by default; the codeless
+  fallback remains in place for any future stub regression.
+- `codeless` — always code-free.  Useful for first-light beacon-
+  presence verification before committing to locked-mode
+  pseudorange records.
+- `locked` — always locked.  Requires that every enabled Tx has
+  a `prn_seed` assigned in `data/stations.toml`.
 
 `inventory --json` reports both the configured and resolved mode
 per instance under `mode_configured` / `mode_resolved`.
@@ -283,10 +313,10 @@ the `hf_gps_tec.spots` table of `/var/lib/sigmond/sink.db`.
 | Field            | Meaning |
 |------------------|---|
 | `time`           | UTC timestamp at the end of the 1-min incoherent window. |
-| `tx_id`          | Transmitter site identifier (`ANCON`, `SICAYA`, `ICA`, …). |
+| `tx_id`          | Transmitter site identifier (`POKER_FLAT`, `GAKONA`, `PALMER`, …). |
 | `rx_id`          | This receiver's station identifier. |
 | `radiod_id`      | The radiod this recorder bound to. |
-| `frequency_hz`   | Centre frequency (2.72e6 or 3.64e6). |
+| `frequency_hz`   | Centre frequency (2.9e6 or 3.4e6). |
 | `pseudorange_km` | Group delay × c / 2, first-hop X-mode (Hysell 2018 §2). |
 | `doppler_hz`     | First moment of Doppler spectrum in the first-hop range bin. |
 | `amplitude_db`   | Peak power in the first-hop bin, dB above incoherent noise floor. |
@@ -330,65 +360,69 @@ inversion (Aricoche & Hysell 2024) directly — group delay, Doppler,
 amplitude at 1-min cadence is exactly the input format that
 `focus.c` ingests.
 
-## 6. Open gaps (what the network operator still needs to supply)
+## 6. Waveform-spec status (formerly open gaps)
 
-The receiver chain is fully specified by Hysell 2018 §2.  The
-**transmitted waveform** is not — these are the gaps blocking
-real-signal **locked-mode** lock.  Code-free detection (§3.3)
-does not need any of the items below: it confirms beacon
-presence and recovers Doppler without code knowledge, and is the
-default operating mode while these gaps remain open.
+These gaps were blocking locked-mode operation; all three
+critical items are now resolved (Hysell, 2026-05-29).
 
-### Gap 1 — PRN code specification per transmitter
+### Gap 1 — PRN code specification — RESOLVED
 
-The Hysell papers say only "unique pseudorandom binary phase code
-with compression ratio 10,000."  Almost certainly a maximal-length
-sequence (m-sequence) from a 14-stage linear-feedback shift register
-truncated to 10,000 chips, or a 14-stage Gold code pair, but the
-**generator polynomial and seed per transmitter** are not in the
-papers.
+Hysell supplied the per-station generator routine
+`create_pseudo_random_code(clen, seed)`:
 
-What we need, per (transmitter, frequency):
-- Generator polynomial (e.g. `x^14 + x^13 + x^8 + x^4 + 1`).
-- Seed / initial register state.
-- Whether the code is the same across the two frequencies of one
-  transmitter or different.
-- Chip-clock phase polarity convention (i.e. does a `0` bit produce
-  phase `0` or phase `π`).
+```python
+def create_pseudo_random_code(clen=10000, seed=0):
+    numpy.random.seed(seed)
+    phases = numpy.array(
+        numpy.exp(1.0j * 2.0 * math.pi * numpy.random.random(clen)),
+        dtype=numpy.complex64,
+    )
+    return phases
+```
 
-### Gap 2 — UTC code-epoch alignment
+Notes that bit the implementation in `core/correlate.py`:
 
-Presumed: each 100 ms code period starts on a 100-ms-aligned UTC
-tick (with the network being GPS-disciplined this is the natural
-choice).  Should be confirmed.
+- The code is **complex random-phase**, not real BPSK.  Each
+  chip is on the unit circle with uniform phase in [0, 2π).
+- Reproducing the exact sequence requires legacy numpy
+  `RandomState` (Mersenne Twister); `np.random.default_rng`
+  (PCG64) yields different numbers for the same seed and would
+  silently desync from the transmitter.  `test_generator_matches_hysell_reference`
+  guards against accidental regression here.
+- Per-station seed: 0 = Poker Flat, 1 = Gakona, 2 = Palmer.
+  Cornell seed TBD when it comes on-air.
+- Same seed is used at both 2.9 MHz and 3.4 MHz for a given
+  station — frequencies do not key the code.
 
-What we need:
-- The UTC boundary the code repeats on (e.g. `t_chip0 mod 100 ms = 0`,
-  or some other offset).
-- Direction of phase advance through the code (forward in time vs
-  reversed).
+### Gap 2 — UTC code-epoch alignment — RESOLVED
+
+Hysell confirmed (2026-05-29) that the codes repeat on
+100-ms-aligned UTC tics — the natural choice for a
+GPS-disciplined network.  Code-epoch grid: `t_chip0 mod 100 ms = 0`.
 
 ### Gap 3 — Amplitude calibration reference (lower priority)
 
-Hysell 2024 uses amplitude (in dB) but does not specify whether it is
-calibrated to an absolute reference, relative to in-band noise, or
-referenced to a synthetic peak.  Since `hf-gps-tec` will
-report dB above its own noise floor, this only matters when comparing
-across receivers; the inversion uses each receiver's series
-internally.
+Still open.  Hysell 2024 reports amplitude (in dB) without
+specifying whether it is calibrated to an absolute reference,
+relative to in-band noise, or referenced to a synthetic peak.
+Since `hf-gps-tec` reports dB above its own noise floor, this
+only matters when comparing across receivers; the inversion
+uses each receiver's series internally, so this gap is not
+blocking.
 
 ### What's *not* a gap
 
 - The receiver DSP chain (Hysell 2018 §2 is fully specified).
 - The output schema (specified by what `focus.c` reads).
-- The network topology (current sites listed in §1; new sites can
-  be added by editing `/etc/hf-gps-tec/stations.toml`).
+- The network topology (current sites listed in §1; new sites
+  can be added by editing `data/stations.toml`).
 - The radiod channel configuration (matches the codar-sounder
   wideband-IQ pattern).
 
-Once gaps 1 and 2 are closed, only `core/correlate.py`'s
-`generate_prn_code(tx_id, freq_id)` needs to change — every other
-stage of the pipeline is waveform-agnostic.
+Adding a new transmitter to the network is now a config-only
+change: add a `[transmitters.<SITE>]` block with `prn_seed = N`
+to `data/stations.toml`, add `<SITE>` to `[transmitters].enabled`
+in the recorder config, and reload.  No code change needed.
 
 ## 7. References
 

@@ -1,58 +1,72 @@
 """PRN replica generation + FFT-based cross-correlation.
 
-The correlator itself (FFT-based circular cross-correlation) is fully
-implemented and tested.  The PRN code generator is a **stub** —
-deterministic ±1 sequence keyed on transmitter ID — pending the
-per-transmitter PRN specification from the JRO network operators.
+The PRN code generator is a direct port of Dr. David Hysell's
+``create_pseudo_random_code`` routine (received from AC0G,
+2026-05-29).  Each code is a length-``clen`` array of unit-magnitude
+complex phases drawn uniformly from [0, 2π); the per-station integer
+seed selects the sequence.
 
-When the real spec arrives, replace `generate_prn_code()` and set
-``PRN_IS_STUB = False``.  Nothing else in the pipeline needs to change.
+Per-station seed mapping (Hysell, 2026-05-29):
+
+    seed 0 → Poker Flat, Alaska
+    seed 1 → Gakona, Alaska
+    seed 2 → Palmer, Alaska (currently down for maintenance)
+
+Cornell University is planned as a second-region transmitter; its
+seed will be assigned when that Tx comes on-air.
+
+Network parameters (Hysell, 2026-05-29):
+
+  Currently   : clen=10_000 chips × 10 µs  → 100-ms code period, 100 kHz BW
+  Planned     : clen= 5_000 chips × 20 µs  → 100-ms code period,  50 kHz BW
+
+Both regimes keep the 100-ms UTC-aligned code period.  Carriers are
+2.9 MHz and 3.4 MHz, emitted simultaneously from each Tx.
 
 References:
-  - Hysell et al. (2018, *JGR Space Physics* 123:6851–6864), §2:
-    "unique pseudorandom binary phase code with a compression ratio
-    of 10,000."
-  - docs/RECEIVER.md §6 — current gap list.
+  - Hysell et al. (2018, *JGR Space Physics* 123:6851–6864), §2.
+  - docs/RECEIVER.md.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Optional
 
 import numpy as np
 
 
 # ---------------------------------------------------------------------------
-# PRN code generator — STUB
+# PRN code generator — Hysell algorithm
 # ---------------------------------------------------------------------------
 
-#: True until the real per-Tx PRN spec is wired in.  Contract `validate
-#: --json` surfaces this as a warning so operators can't accidentally
-#: deploy a stub-built recorder thinking it's live.
-PRN_IS_STUB: bool = True
+#: Real generator is wired in.  Kept as a module-level flag because the
+#: contract surface (`contract.build_inventory`) reads it to decide
+#: whether to warn operators about codeless-only operation.
+PRN_IS_STUB: bool = False
 
 
-def generate_prn_code(tx_id: str, frequency_hz: int, n_chips: int = 10_000) -> np.ndarray:
-    """Return an ``n_chips`` long ±1 sequence representing the PRN code.
+def generate_prn_code(
+    prn_seed: int,
+    n_chips: int = 10_000,
+) -> np.ndarray:
+    """Generate one Hysell per-station PRN phase code.
 
-    Currently returns a deterministic m-sequence-like ±1 sequence keyed
-    on a stable hash of ``(tx_id, frequency_hz)``.  This is **shape-
-    correct** but **does not match** any real transmitter — the
-    correlator pipeline can be exercised end-to-end with synthetic data
-    using these stubs.
+    Direct port of ``create_pseudo_random_code(clen, seed)``:
 
-    JRO-spec arrival:
-      - Replace this function body with the per-Tx generator polynomial
-        and seed.
-      - Set ``PRN_IS_STUB = False`` above.
-      - Update tests in tests/test_correlate.py accordingly.
+        rng    = legacy numpy Mersenne-Twister, seeded with ``prn_seed``
+        phases = exp(1j · 2π · rng.random_sample(n_chips))
+
+    The code is complex (continuous-phase PSK on the unit circle),
+    not real BPSK.  Exact bit-for-bit reproduction of Hysell's
+    reference output requires ``numpy.random.RandomState`` (legacy
+    Mersenne Twister); do NOT switch to ``default_rng`` (PCG64) — it
+    would produce a different sequence even for the same seed and
+    silently desync from the transmitter.
     """
-    # Stable, reproducible per-(tx_id, freq) seed.
-    seed = (hash((tx_id.upper(), int(frequency_hz))) & 0xFFFF_FFFF)
-    rng = np.random.default_rng(seed)
-    bits = rng.integers(0, 2, size=n_chips, dtype=np.int8)
-    return np.where(bits == 0, np.int8(-1), np.int8(1))
+    rng = np.random.RandomState(int(prn_seed))
+    phases = np.exp(1j * 2.0 * np.pi * rng.random_sample(int(n_chips)))
+    return phases.astype(np.complex64)
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +79,8 @@ class Replica:
     """One precomputed transmitter replica for FFT-based correlation."""
     tx_id: str
     frequency_hz: int
-    chips: np.ndarray                # int8, ±1, shape (n_chips,)
+    prn_seed: int
+    chips: np.ndarray                # complex64, |chip|=1, shape (n_chips,)
     fft_conj: np.ndarray             # complex64, shape (n_samples,)
 
 
@@ -88,25 +103,38 @@ class ReplicaBank:
         self.n_chips = self.n_samples // self.samples_per_chip
         self._replicas: dict[tuple[str, int], Replica] = {}
 
-    def add(self, tx_id: str, frequency_hz: int) -> Replica:
+    def add(
+        self,
+        tx_id: str,
+        frequency_hz: int,
+        *,
+        prn_seed: int,
+    ) -> Replica:
         key = (tx_id.upper(), int(frequency_hz))
         if key in self._replicas:
             return self._replicas[key]
-        chips = generate_prn_code(tx_id, frequency_hz, n_chips=self.n_chips)
+        chips = generate_prn_code(prn_seed, n_chips=self.n_chips)
         # Upsample by sample-and-hold across `samples_per_chip` samples.
-        upsampled = np.repeat(chips.astype(np.float32), self.samples_per_chip)
+        # Hysell's rep_seq() copies each chip `rep` times — identical
+        # operation, just expressed via np.repeat.
+        upsampled = np.repeat(chips, self.samples_per_chip).astype(np.complex64)
         # Precompute conj(FFT(replica)) for FFT-based circular correlation.
         replica = Replica(
             tx_id=key[0],
             frequency_hz=key[1],
+            prn_seed=int(prn_seed),
             chips=chips,
             fft_conj=np.conj(np.fft.fft(upsampled)).astype(np.complex64),
         )
         self._replicas[key] = replica
         return replica
 
-    def add_many(self, tx_ids: Iterable[str], frequency_hz: int) -> list[Replica]:
-        return [self.add(t, frequency_hz) for t in tx_ids]
+    def add_many(
+        self,
+        tx_seeds: Iterable[tuple[str, int]],
+        frequency_hz: int,
+    ) -> list[Replica]:
+        return [self.add(t, frequency_hz, prn_seed=s) for t, s in tx_seeds]
 
     def __iter__(self):
         return iter(self._replicas.values())

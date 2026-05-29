@@ -3,8 +3,8 @@
 This document describes the high-frequency (HF) pseudorandom-noise-
 (PRN-) coded beacon network that `hf-gps-tec` is built to receive,
 the receiver digital-signal-processing (DSP) chain, the output
-schema, and the open specification gaps that prevent the recorder
-from locking to real over-the-air signals at this scaffolding stage.
+schema, and the waveform-spec status (formerly open gaps,
+resolved by Hysell on 2026-05-29).
 
 The reference design follows Hysell, Baumgarten, Milla, Valdez &
 Kuyeng (2018, *J. Geophys. Res.: Space Physics* 123:6851–6864) §2,
@@ -15,8 +15,8 @@ Hysell (2024, *J. Geophys. Res.: Machine Learning & Computation*
 `README.md` carries the entry-door overview and install commands.
 `docs/OVERVIEW.md` carries the project summary, transmit and
 receive architecture, data products, and HamSCI / ionospheric-
-science rationale.  This file is the deep technical reference and
-the spec-gap tracking document.
+science rationale.  This file is the deep technical reference for
+the receive-side implementation.
 
 ## Contents
 
@@ -25,7 +25,7 @@ the spec-gap tracking document.
 3. [Receiver DSP chain](#3-receiver-dsp-chain)
 4. [Observables and output schema](#4-observables-and-output-schema)
 5. [Scientific value as opportunistic ionospheric input](#5-scientific-value-as-opportunistic-ionospheric-input)
-6. [Open gaps (what JRO still needs to supply)](#6-open-gaps-what-jro-still-needs-to-supply)
+6. [Waveform-spec status](#6-waveform-spec-status-formerly-open-gaps)
 7. [References](#7-references)
 
 ---
@@ -59,10 +59,11 @@ it with a warning.  See `data/stations.toml` for full
 coordinates and notes.
 
 Each transmit site radiates **0.5 W continuous power per frequency**
-into inverted-V antennas (per Hysell 2018 §2; carry-over from the
-Peru deployment unless and until the operator publishes a
-revision).  Both transmit frequencies are emitted simultaneously
-from each site.
+into inverted-V antennas (per Hysell 2018 §2; antenna and power
+figures are presumed to carry over from the Peru deployment —
+Hysell's 2026-05-29 correspondence did not specifically restate
+them for the Alaska sites).  Both transmit frequencies are
+emitted simultaneously from each site.
 
 **Receive sites.**  Not centrally administered in the current
 deployment.  Any sigmond station with HF reception infrastructure
@@ -158,7 +159,7 @@ ka9q-radio channel @ 2.9 MHz (or 3.4 MHz), 100 kS/s complex I/Q
   ▼
 Frame to 100 ms blocks (10,000 samples) aligned to Coordinated
 Universal Time (UTC) epoch grid
-  │   See §6 gap #2 — UTC alignment protocol presumed but unconfirmed.
+  │   Hysell (2026-05-29) confirmed code repetition on 100-ms UTC tics.
   ▼
 PRN correlator bank (one replica per known Tx on this frequency)
   │   fast Fourier transform (FFT)-based circular cross-correlation:
@@ -325,7 +326,7 @@ the `hf_gps_tec.spots` table of `/var/lib/sigmond/sink.db`.
 | `lock_quality`   | 0–1 heuristic (peak prominence + slow-time phase consistency). |
 | `noise_floor_db` | Estimated incoherent noise floor in the range-Doppler matrix. |
 | `processing_version` | `hf-gps-tec` version string. |
-| `contract_version`   | `0.7`. |
+| `contract_version`   | `0.8`. |
 
 The schema is upstream-compatible with the `.out.mod` text format
 that Hysell's inversion code (`focus.c`) consumes — emitting that

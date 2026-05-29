@@ -86,8 +86,9 @@ the small-deviation limit the relationship to TEC is the same.
 along oblique HF propagation paths rather than along
 near-zenith GNSS paths.  The name reflects what kind of
 ionospheric science observable the client ultimately produces,
-not the modulation it decodes (binary phase-shift keying, BPSK)
-or the wave-mode it operates in (HF skywave).
+not the modulation it decodes (continuous-phase PSK with a
+complex random-phase PRN code; see §3.2) or the wave-mode it
+operates in (HF skywave).
 
 ## 3. Transmit architecture
 
@@ -340,8 +341,11 @@ Full DSP-level detail of every stage is in
 ### 4.3 Operating modes — locked vs code-free
 
 The pipeline above describes **locked** mode, which requires the
-per-transmitter PRN code.  Until that code is supplied by the
-network operator, the daemon runs in **code-free** mode instead:
+per-transmitter PRN code.  Hysell's per-station generator landed
+on 2026-05-29 (see §3.2), so locked mode is now the default.  A
+**code-free** mode remains available — useful for first-light
+beacon-presence verification before committing to locked-mode
+records, and as a stub-regression fallback under `auto`:
 
 - **Codeless detector** (`core/detect_codeless.py`) — for each
   100 kS/s channel, accumulates a configurable integration
@@ -370,9 +374,12 @@ for a station coming on-air, and a useful diurnal-propagation
 monitor in its own right.
 
 Mode selection is controlled by `[mode] mode` in the recorder
-config: `auto` (the default — code-free while the PRN code is
-stubbed, locked once it is real), `codeless` (always code-free),
-or `locked` (always full correlator).  The contract surface
+config: `auto` (the default — resolves to `locked` whenever the
+real Hysell generator is wired in, which it now is; falls back
+to code-free only if a future regression re-stubs the
+generator), `codeless` (always code-free), or `locked` (always
+full correlator; requires every enabled Tx to have a `prn_seed`
+in `data/stations.toml`).  The contract surface
 (`inventory --json`) reports both the configured and resolved
 mode per instance.
 
@@ -422,7 +429,7 @@ detected first-hop propagation path per minute).
 | `range_bin`           | Range bin index used to compute pseudorange. |
 | `n_hops`              | 1 (first-hop only at v0.1.0). |
 | `processing_version`  | `hf-gps-tec` software version. |
-| `contract_version`    | `0.7`. |
+| `contract_version`    | `0.8`. |
 
 ### 5.2 Codeless-mode record fields (`mode = "codeless"`)
 
@@ -448,7 +455,7 @@ frequency per integration window, default 60 s).
 | `detection`                 | Boolean — `true` when `autocorr_db ≥ detection_threshold_db`. |
 | `detection_threshold_db`    | Threshold the detection boolean was evaluated against. |
 | `processing_version`        | `hf-gps-tec` software version. |
-| `contract_version`          | `0.7`. |
+| `contract_version`          | `0.8`. |
 
 No `tx_id` or `pseudorange_km` — those require code knowledge.
 
@@ -633,21 +640,28 @@ ionospheric instrument network.
 
 ## 8. Open work
 
-The current scaffolding is feature-complete on the receiver
-side except for the items in
-[`docs/RECEIVER.md`](RECEIVER.md) §6.  Summarising:
+Both items that previously blocked locked-mode operation — the
+per-station PRN spec and the UTC code-epoch alignment — were
+resolved by Hysell on 2026-05-29.  See
+[`docs/RECEIVER.md`](RECEIVER.md) §6 for the as-resolved details.
+Outstanding items:
 
-- **PRN code specification (blocking *locked mode only*).**
-  The per-transmitter generator polynomial and seed must be
-  obtained from the network operator before the recorder can
-  lock to real over-the-air signals.  In the meantime the
-  daemon runs in code-free mode (§4.3) and produces
-  detection-only records — sufficient to confirm beacon
-  reception, characterise diurnal propagation, and recover
-  Doppler shift.
-- **UTC code-epoch alignment protocol (blocking).**  The phase
-  reference at which each 100-ms code period starts on the
-  UTC timeline.  Presumed but unconfirmed.
+- **Cornell PRN seed.**  The Cornell transmitter is planned but
+  not yet on-air; its per-site seed will be assigned when it
+  comes up.  The pipeline currently logs a warning and skips
+  Cornell because its `prn_seed` field is empty.
+- **Planned 5 000-chip / 20-µs / 50-kHz migration.**  Hysell
+  believes the present 100 kHz bandwidth "probably exceeds the
+  channel capacity much of the time" and intends to halve the
+  chip rate.  Cutover is a config-only change — see the
+  `[processing]` block in the config template for the four
+  parameters that must move together.
+- **Amplitude calibration reference.**  Hysell 2024 reports
+  amplitude in dB without specifying an absolute reference;
+  `hf-gps-tec` reports dB above its own noise floor.  This only
+  matters when comparing across receivers (the per-receiver
+  inversion uses each receiver's own series internally), so it
+  is not blocking.
 - **Multi-hop returns.**  Currently only first-hop returns are
   detected and reported.  Hysell 2018 explicitly mentions
   multi-hop incorporation as future work with increased

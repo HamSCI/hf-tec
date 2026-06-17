@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# hf-gps-tec install.sh — first-run bootstrap (Pattern A).
+# hf-tec install.sh — first-run bootstrap (Pattern A).
 #
 # Idempotent.  Creates the service user, builds the venv via uv (sourced
 # from sigmond's shared ensure_uv helper), installs the venv at
-# /opt/hf-gps-tec/venv, links the CLI shim and systemd unit, and
+# /opt/hf-tec/venv, links the CLI shim and systemd unit, and
 # renders config templates if they are not already present.
 
 set -euo pipefail
 
-NAME="hf-gps-tec"
-USER="hfgpstec"
-GROUP="hfgpstec"
+NAME="hf-tec"
+USER="hftec"
+GROUP="hftec"
 INSTALL_DIR="/opt/${NAME}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONF_DIR="/etc/${NAME}"
@@ -39,7 +39,7 @@ if ! getent group "${GROUP}" >/dev/null; then
 fi
 if ! id "${USER}" >/dev/null 2>&1; then
     useradd --system --gid "${GROUP}" --home-dir "${INSTALL_DIR}" \
-            --shell /usr/sbin/nologin --comment "hf-gps-tec" "${USER}"
+            --shell /usr/sbin/nologin --comment "hf-tec" "${USER}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -116,10 +116,10 @@ install -d -m 0755 -o "${USER}" -g "${GROUP}" "${LOG_DIR}"
 # client's service user) can list /etc/<client>/ and read every
 # per-instance *.toml.  Matches the convention of every other
 # sigmond client (hf-timestd, wspr-recorder, psk-recorder, …).
-if [[ ! -e "${CONF_DIR}/hf-gps-tec-config.toml" ]]; then
+if [[ ! -e "${CONF_DIR}/hf-tec-config.toml" ]]; then
     install -m 0644 -o "${USER}" -g "${GROUP}" \
-        "${REPO_ROOT}/config/hf-gps-tec-config.toml.template" \
-        "${CONF_DIR}/hf-gps-tec-config.toml"
+        "${REPO_ROOT}/config/hf-tec-config.toml.template" \
+        "${CONF_DIR}/hf-tec-config.toml"
 fi
 # stations.toml lives in a subdirectory so sigmond's per-instance
 # scanner (lifecycle.py globs /etc/<client>/*.toml) does not misread
@@ -141,10 +141,10 @@ fi
 # 6. systemd unit
 # ---------------------------------------------------------------------------
 
-ln -sfn "${REPO_ROOT}/systemd/hf-gps-tec@.service" \
-        /etc/systemd/system/hf-gps-tec@.service
+ln -sfn "${REPO_ROOT}/systemd/hf-tec@.service" \
+        /etc/systemd/system/hf-tec@.service
 
-# QA snapshot timer (every 15 min): periodic `hf-gps-tec qa --json`
+# QA snapshot timer (every 15 min): periodic `hf-tec qa --json`
 # capture for trend monitoring.  Templated per-instance just like the
 # recorder; PartOf the recorder so disabling the recorder also halts
 # snapshots.  Operator enables manually per instance — same pattern as
@@ -153,25 +153,25 @@ install -d -m 0755 -o "${USER}" -g "${GROUP}" "${INSTALL_DIR}/bin"
 install -m 0755 -o "${USER}" -g "${GROUP}" \
     "${REPO_ROOT}/scripts/qa-snapshot.sh" \
     "${INSTALL_DIR}/bin/qa-snapshot.sh"
-ln -sfn "${REPO_ROOT}/systemd/hf-gps-tec-qa@.service" \
-        /etc/systemd/system/hf-gps-tec-qa@.service
-ln -sfn "${REPO_ROOT}/systemd/hf-gps-tec-qa@.timer" \
-        /etc/systemd/system/hf-gps-tec-qa@.timer
+ln -sfn "${REPO_ROOT}/systemd/hf-tec-qa@.service" \
+        /etc/systemd/system/hf-tec-qa@.service
+ln -sfn "${REPO_ROOT}/systemd/hf-tec-qa@.timer" \
+        /etc/systemd/system/hf-tec-qa@.timer
 
 systemctl daemon-reload
 
 echo
-echo "hf-gps-tec installed."
+echo "hf-tec installed."
 echo "  venv:      ${INSTALL_DIR}/venv"
 echo "  cli:       /usr/local/bin/${NAME}"
-echo "  config:    ${CONF_DIR}/hf-gps-tec-config.toml"
+echo "  config:    ${CONF_DIR}/hf-tec-config.toml"
 echo "  data:      ${DATA_DIR}"
-echo "  unit:      /etc/systemd/system/hf-gps-tec@.service"
-echo "  qa unit:   /etc/systemd/system/hf-gps-tec-qa@.service"
-echo "  qa timer:  /etc/systemd/system/hf-gps-tec-qa@.timer"
+echo "  unit:      /etc/systemd/system/hf-tec@.service"
+echo "  qa unit:   /etc/systemd/system/hf-tec-qa@.service"
+echo "  qa timer:  /etc/systemd/system/hf-tec-qa@.timer"
 echo
 echo "next:"
-echo "  1. edit ${CONF_DIR}/hf-gps-tec-config.toml"
+echo "  1. edit ${CONF_DIR}/hf-tec-config.toml"
 echo "  2. sudo -u ${USER} ${NAME} validate --json"
-echo "  3. sudo systemctl start hf-gps-tec@<radiod-id>"
-echo "  4. sudo systemctl enable --now hf-gps-tec-qa@<radiod-id>.timer"
+echo "  3. sudo systemctl start hf-tec@<radiod-id>"
+echo "  4. sudo systemctl enable --now hf-tec-qa@<radiod-id>.timer"

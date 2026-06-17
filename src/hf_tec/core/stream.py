@@ -1,4 +1,4 @@
-"""HfGpsTecSource — wideband I/Q ingest from radiod via ka9q-python.
+"""HfTecSource — wideband I/Q ingest from radiod via ka9q-python.
 
 Subscribes to one ka9q-radio channel per Tx frequency.  Provisioned
 dynamically through ``RadiodControl.ensure_channel`` so radiod does
@@ -62,14 +62,14 @@ class IqFrameSource(Protocol):
 
 
 @dataclass
-class HfGpsTecSource:
+class HfTecSource:
     """Live RTP I/Q source for one Tx frequency."""
     radiod_status: str            # mDNS hostname of the radiod
     frequency_hz: int
     sample_rate_hz: int = 100_000
     filter_guard_hz: int = 1500
     frame_n_samples: int = 10_000
-    client_id: str = "hf-gps-tec"
+    client_id: str = "hf-tec"
     radiod_id: str = ""
     preset: str = "iq"
 
@@ -203,7 +203,7 @@ class HfGpsTecSource:
 
         reader = self._authority_reader
         if reader is None:
-            from hf_gps_tec.core.authority_reader import AuthorityReader
+            from hf_tec.core.authority_reader import AuthorityReader
             reader = self._authority_reader = AuthorityReader()
         snap = None
         try:
@@ -224,7 +224,7 @@ class HfGpsTecSource:
             )
         if utc_sec is None:
             logger.warning(
-                "HfGpsTecSource: frame anchor falling back to wall-clock — "
+                "HfTecSource: frame anchor falling back to wall-clock — "
                 "RTP timing info unavailable (anchor_first_rtp=%r, "
                 "channel_info=%r). Labels tied to host clock until "
                 "hf-timestd authority + RTP become available.",
@@ -235,7 +235,7 @@ class HfGpsTecSource:
             seconds=offset_sec,
         )
         logger.info(
-            "HfGpsTecSource: frame anchor %s (rtp=%d, authority=%s, "
+            "HfTecSource: frame anchor %s (rtp=%d, authority=%s, "
             "offset=%+.6fs) @ %d Hz",
             anchor.isoformat(), self._anchor_first_rtp,
             (snap.t_level_active if snap else "unavailable"),

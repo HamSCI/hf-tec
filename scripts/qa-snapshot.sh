@@ -1,15 +1,15 @@
 #!/bin/bash
-# qa-snapshot.sh — periodic snapshot of `hf-gps-tec qa --json`.
+# qa-snapshot.sh — periodic snapshot of `hf-tec qa --json`.
 #
 # Appends one compact-JSON line per invocation to
-#   /var/lib/hf-gps-tec/<instance>/qa/YYYY-MM-DD.jsonl
+#   /var/lib/hf-tec/<instance>/qa/YYYY-MM-DD.jsonl
 # and prints a one-line summary to stdout (which systemd captures
-# into journald via the templated hf-gps-tec-qa@<instance>.service).
+# into journald via the templated hf-tec-qa@<instance>.service).
 #
-# Designed for the systemd timer `hf-gps-tec-qa@<instance>.timer`
+# Designed for the systemd timer `hf-tec-qa@<instance>.timer`
 # at OnCalendar=*:00/15.  Safe to run manually for debugging:
 #
-#   sudo -u hfgpstec scripts/qa-snapshot.sh AC0G-B1
+#   sudo -u hftec scripts/qa-snapshot.sh AC0G-B1
 #
 # Exit code:
 #   0 — snapshot written (regardless of NULL/WEAK/SIGNAL verdict).
@@ -23,8 +23,8 @@
 set -euo pipefail
 
 INSTANCE="${1:?usage: qa-snapshot.sh <reporter_id>}"
-DATA_ROOT="${HF_GPS_TEC_DATA_ROOT:-/var/lib/hf-gps-tec}"
-HF_GPS_TEC_BIN="${HF_GPS_TEC_BIN:-/usr/local/bin/hf-gps-tec}"
+DATA_ROOT="${HF_TEC_DATA_ROOT:-/var/lib/hf-tec}"
+HF_TEC_BIN="${HF_TEC_BIN:-/usr/local/bin/hf-tec}"
 
 QA_DIR="${DATA_ROOT}/${INSTANCE}/qa"
 TODAY="$(date -u +%Y-%m-%d)"
@@ -34,7 +34,7 @@ mkdir -p "${QA_DIR}"
 
 # Capture pretty JSON; if the qa subcommand itself fails, build a
 # synthetic error row so the JSONL stream remains continuous.
-if json="$("${HF_GPS_TEC_BIN}" qa --since 1h --instance "${INSTANCE}" --json 2>&1)"; then
+if json="$("${HF_TEC_BIN}" qa --since 1h --instance "${INSTANCE}" --json 2>&1)"; then
     :
 else
     json="$(jq -n --arg msg "$json" --arg inst "${INSTANCE}" \

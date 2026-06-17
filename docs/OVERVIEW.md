@@ -1,7 +1,7 @@
-# hf-gps-tec — project overview
+# hf-tec — project overview
 
 This document is the project-level summary.  It describes what
-`hf-gps-tec` is and is for, the transmit and receive architecture
+`hf-tec` is and is for, the transmit and receive architecture
 of the high-frequency (HF) beacon network it is built around, the
 data products it generates, and the scientific value of those data
 products to the Ham Radio Science Citizen Investigation (HamSCI)
@@ -15,7 +15,7 @@ implementation.
 
 ## Contents
 
-1. [What `hf-gps-tec` is](#1-what-hf-gps-tec-is)
+1. [What `hf-tec` is](#1-what-hf-tec-is)
 2. [Where the name comes from](#2-where-the-name-comes-from)
 3. [Transmit architecture](#3-transmit-architecture)
 4. [Receive architecture](#4-receive-architecture)
@@ -27,9 +27,9 @@ implementation.
 
 ---
 
-## 1. What `hf-gps-tec` is
+## 1. What `hf-tec` is
 
-`hf-gps-tec` is a software client in the sigmond software-defined
+`hf-tec` is a software client in the sigmond software-defined
 radio (SDR) suite.  It receives pseudorandom-noise- (PRN-) coded
 HF ionospheric beacons that radiate from a small network of
 fixed-location transmitters, correlates each received frame
@@ -49,7 +49,7 @@ the transmit network is now being re-established in North America
 under Dr. David Hysell's leadership at Cornell University (see §3
 below).  The methodology is the same; only the geography differs.
 
-`hf-gps-tec` is not the transmitter side of that system — there
+`hf-tec` is not the transmitter side of that system — there
 is no transmit hardware in this project.  It is purely a
 receive-and-decode client that can be deployed at any sigmond
 station with appropriate antennas and a `ka9q-radio` `radiod`
@@ -82,7 +82,7 @@ dependence and depends on the geomagnetic field, electron
 gyrofrequency, and electron-neutral collision frequency, but in
 the small-deviation limit the relationship to TEC is the same.
 
-`hf-gps-tec` is, therefore, a GPS-TEC instrument that samples
+`hf-tec` is, therefore, a GPS-TEC instrument that samples
 along oblique HF propagation paths rather than along
 near-zenith GNSS paths.  The name reflects what kind of
 ionospheric science observable the client ultimately produces,
@@ -196,7 +196,7 @@ observable scientifically meaningful.
 The same waveform family is in principle deployable at additional
 sites — Aricoche & Hysell (2024) noted an Alaska-region deployment
 as future work, which is now realised as the three Alaska
-transmitters in §3.1.  Adding further transmitters to `hf-gps-tec`
+transmitters in §3.1.  Adding further transmitters to `hf-tec`
 is a configuration-only change: append an entry to
 `data/stations.toml` (including the per-site `prn_seed`), add the
 new site to the `transmitters.enabled` list in the recorder
@@ -211,7 +211,7 @@ Mala, La Merced, Barranca, Oroya — Aricoche & Hysell 2024 Table
 1) that fed the regional ionospheric inversion.  In the North
 American re-deployment, the receive network is **not centrally
 administered**: any sigmond station with appropriate HF
-reception infrastructure can run `hf-gps-tec` and contribute
+reception infrastructure can run `hf-tec` and contribute
 observations.  This client is the software equivalent of one
 such receive site, built to run on commodity software-defined-
 radio hardware with the sigmond suite.
@@ -241,7 +241,7 @@ kilo-samples-per-second (kS/s) I/Q baseband for each of the two
 frequency channels.  Two carriers in, two narrow baseband streams
 out.
 
-`hf-gps-tec` reaches the same per-carrier baseband streams a
+`hf-tec` reaches the same per-carrier baseband streams a
 stage earlier, by letting `radiod` (ka9q-radio) own all the
 down-conversion and decimation — one `radiod` channel per
 transmit frequency, each delivering 100 kS/s complex I/Q
@@ -264,7 +264,7 @@ Hysell 2018 §2 reference pipeline:
       ├──► 2.9 MHz baseband, 100 kS/s I/Q
       └──► 3.4 MHz baseband, 100 kS/s I/Q
 
-hf-gps-tec via ka9q-radio:
+hf-tec via ka9q-radio:
 
     RF (RX888 sees the whole HF spectrum)
       │
@@ -295,7 +295,7 @@ with one in-process pipeline per transmit frequency:
 radiod (ka9q-radio, IQ preset, 100 kS/s I/Q per channel)
    │
    ▼
-HfGpsTecSource (core/stream.py)
+HfTecSource (core/stream.py)
    │   ka9q-python MultiStream subscription
    │   frames I/Q into 100 ms (10,000-sample) blocks at the
    │   transmit code-period boundary, anchored to Real-time
@@ -332,7 +332,7 @@ OutputSink (core/output.py)
    │   one JSON Lines (JSONL) record per (transmitter,
    │   receiver, frequency) per minute, daily-rotated.
    │   Additive insert into sigmond's HamSCI SQLite sink at
-   │   /var/lib/sigmond/sink.db (table hf_gps_tec.spots).
+   │   /var/lib/sigmond/sink.db (table hf_tec.spots).
 ```
 
 Full DSP-level detail of every stage is in
@@ -428,7 +428,7 @@ detected first-hop propagation path per minute).
 | `lock_quality`        | Heuristic 0–1; higher = sharper, more isolated peak. |
 | `range_bin`           | Range bin index used to compute pseudorange. |
 | `n_hops`              | 1 (first-hop only at v0.1.0). |
-| `processing_version`  | `hf-gps-tec` software version. |
+| `processing_version`  | `hf-tec` software version. |
 | `contract_version`    | `0.8`. |
 
 ### 5.2 Codeless-mode record fields (`mode = "codeless"`)
@@ -454,7 +454,7 @@ frequency per integration window, default 60 s).
 | `band_power_db`             | Uncalibrated band power for the integration window (dB). |
 | `detection`                 | Boolean — `true` when `autocorr_db ≥ detection_threshold_db`. |
 | `detection_threshold_db`    | Threshold the detection boolean was evaluated against. |
-| `processing_version`        | `hf-gps-tec` software version. |
+| `processing_version`        | `hf-tec` software version. |
 | `contract_version`          | `0.8`. |
 
 No `tx_id` or `pseudorange_km` — those require code knowledge.
@@ -463,13 +463,13 @@ No `tx_id` or `pseudorange_km` — those require code knowledge.
 
 - **JSONL on disk.**  Canonical, append-only, daily-rotated;
   separate spool per operating mode:
-  `/var/lib/hf-gps-tec/<radiod_id>/locked/YYYY/MM/DD.jsonl`
+  `/var/lib/hf-tec/<radiod_id>/locked/YYYY/MM/DD.jsonl`
   and `…/codeless/YYYY/MM/DD.jsonl`.  One file per UTC day per
   mode; one record per line; never deleted by the client.
 - **HamSCI sink (SQLite).**  Additive, on hosts where
   sigmond's local sink at `/var/lib/sigmond/sink.db` is
-  writable.  Locked records go to `hf_gps_tec.spots`; codeless
-  records go to `hf_gps_tec_codeless.spots`.
+  writable.  Locked records go to `hf_tec.spots`; codeless
+  records go to `hf_tec_codeless.spots`.
 - **`.out.mod` legacy text format.**  Not yet implemented.
   Hysell's regional-inversion C code consumes a tab-separated
   text format with a six-line header; an opt-in writer for
@@ -496,7 +496,7 @@ the sigmond ecosystem are oriented around:
 - magnetometer-based geomagnetic activity monitoring
   (`mag-recorder`).
 
-`hf-gps-tec` extends this collection along two axes that the
+`hf-tec` extends this collection along two axes that the
 existing clients do not cover.
 
 ### 6.1 Active, deliberately-engineered beacon reception
@@ -504,7 +504,7 @@ existing clients do not cover.
 Existing sigmond clients are mostly **opportunistic** — they
 consume whatever signal a third party happens to be radiating
 for non-scientific reasons (amateur QSOs, aviation telemetry,
-oceanographic radar, time-standard broadcasts).  `hf-gps-tec`
+oceanographic radar, time-standard broadcasts).  `hf-tec`
 is different: it receives a signal that was **deliberately
 engineered for ionospheric science**.  The PRN waveform's
 correlation gain (60 dB, derived in §3 above) gives a
@@ -541,7 +541,7 @@ dataset.
 
 ## 7. Contribution to ionospheric study
 
-The propagation observations `hf-gps-tec` produces inform a
+The propagation observations `hf-tec` produces inform a
 range of ionospheric phenomena that are not well sampled by
 either zenith-pointing incoherent-scatter radars (ISRs) or by
 the conventional GPS-TEC satellite network.
@@ -658,7 +658,7 @@ Outstanding items:
   parameters that must move together.
 - **Amplitude calibration reference.**  Hysell 2024 reports
   amplitude in dB without specifying an absolute reference;
-  `hf-gps-tec` reports dB above its own noise floor.  This only
+  `hf-tec` reports dB above its own noise floor.  This only
   matters when comparing across receivers (the per-receiver
   inversion uses each receiver's own series internally), so it
   is not blocking.

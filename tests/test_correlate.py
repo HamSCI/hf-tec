@@ -10,7 +10,7 @@ import math
 
 import numpy as np
 
-from hf_gps_tec.core import correlate as cc
+from hf_tec.core import correlate as cc
 
 
 def test_replica_bank_dimensions() -> None:

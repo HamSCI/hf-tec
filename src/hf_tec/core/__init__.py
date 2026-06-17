@@ -1,4 +1,4 @@
-"""DSP core for hf-gps-tec.
+"""DSP core for hf-tec.
 
 Modules:
   - stream       — RTP I/Q ingest from radiod via ka9q-python.

@@ -1,9 +1,9 @@
-# hf-gps-tec deploy manifest — declares how this client gets from
+# hf-tec deploy manifest — declares how this client gets from
 # repo source to its production location. Conforms to the HamSCI client
 # contract v0.7 (sigmond/docs/CLIENT-CONTRACT.md).
 
 [package]
-name             = "hf-gps-tec"
+name             = "hf-tec"
 version          = "0.1.0"
 description      = "HF PRN-coded beacon recorder for ionospheric specification"
 contract_version = "0.8"
@@ -11,16 +11,16 @@ license          = "MIT"
 
 # ---------------------------------------------------------------------------
 # Build phase: install Python package into a venv at
-# /opt/hf-gps-tec/venv. Sigmond's shared ensure_uv helper builds the
+# /opt/hf-tec/venv. Sigmond's shared ensure_uv helper builds the
 # venv via uv (see scripts/install.sh).
 # ---------------------------------------------------------------------------
 
 [build]
 steps = [
-    "/opt/git/sigmond/hf-gps-tec/scripts/install.sh --build-only",
+    "/opt/git/sigmond/hf-tec/scripts/install.sh --build-only",
 ]
 produces = [
-    "/opt/hf-gps-tec/venv/bin/hf-gps-tec",
+    "/opt/hf-tec/venv/bin/hf-tec",
 ]
 
 # ---------------------------------------------------------------------------
@@ -40,27 +40,27 @@ produces = [
 
 [[install.steps]]
 kind = "link"
-src  = "/opt/hf-gps-tec/venv/bin/hf-gps-tec"
-dst  = "/usr/local/bin/hf-gps-tec"
+src  = "/opt/hf-tec/venv/bin/hf-tec"
+dst  = "/usr/local/bin/hf-tec"
 
 [[install.steps]]
 kind = "link"
-src  = "systemd/hf-gps-tec@.service"
-dst  = "/etc/systemd/system/hf-gps-tec@.service"
+src  = "systemd/hf-tec@.service"
+dst  = "/etc/systemd/system/hf-tec@.service"
 
 [[install.steps]]
 kind      = "render"
-src       = "config/hf-gps-tec-config.toml.template"
-dst       = "/etc/hf-gps-tec/hf-gps-tec-config.toml"
+src       = "config/hf-tec-config.toml.template"
+dst       = "/etc/hf-tec/hf-tec-config.toml"
 mode      = "0640"
-owner     = "hfgpstec:hfgpstec"
+owner     = "hftec:hftec"
 if_absent = true
 
 [[install.steps]]
 kind  = "mkdir"
-dst   = "/etc/hf-gps-tec/data"
+dst   = "/etc/hf-tec/data"
 mode  = "0755"
-owner = "hfgpstec:hfgpstec"
+owner = "hftec:hftec"
 
 # stations.toml lives in a data/ subdirectory so sigmond's per-instance
 # scanner — which globs /etc/<client>/*.toml — does not misread it as
@@ -68,22 +68,22 @@ owner = "hfgpstec:hfgpstec"
 [[install.steps]]
 kind      = "render"
 src       = "data/stations.toml"
-dst       = "/etc/hf-gps-tec/data/stations.toml"
+dst       = "/etc/hf-tec/data/stations.toml"
 mode      = "0644"
-owner     = "hfgpstec:hfgpstec"
+owner     = "hftec:hftec"
 if_absent = true
 
 [[install.steps]]
 kind  = "mkdir"
-dst   = "/var/lib/hf-gps-tec"
+dst   = "/var/lib/hf-tec"
 mode  = "0755"
-owner = "hfgpstec:hfgpstec"
+owner = "hftec:hftec"
 
 [[install.steps]]
 kind  = "mkdir"
-dst   = "/var/log/hf-gps-tec"
+dst   = "/var/log/hf-tec"
 mode  = "0755"
-owner = "hfgpstec:hfgpstec"
+owner = "hftec:hftec"
 
 # ---------------------------------------------------------------------------
 # Systemd units sigmond should know about for start/stop/status.
@@ -92,7 +92,7 @@ owner = "hfgpstec:hfgpstec"
 [systemd]
 units = []
 templated_units = [
-    "hf-gps-tec@.service",
+    "hf-tec@.service",
 ]
 
 # ---------------------------------------------------------------------------
@@ -123,13 +123,13 @@ packages = [
 # ---------------------------------------------------------------------------
 
 [client_features.watch]
-verb         = "hf-gps-tec"
-description  = "hf-gps-tec PRN-beacon detection records (per freq/window)"
+verb         = "hf-tec"
+description  = "hf-tec PRN-beacon detection records (per freq/window)"
 verbose      = true
 per_instance = true
 
 [client_features.receiver_channels]
 description  = "PRN-beacon RF channels (one per enabled [[frequency]])"
 per_instance = true
-parser_file  = "src/hf_gps_tec/sigmond_tui.py"
+parser_file  = "src/hf_tec/sigmond_tui.py"
 parser_attr  = "parse_receiver_channels"

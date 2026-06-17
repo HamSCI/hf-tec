@@ -1,4 +1,4 @@
-"""Tests for `hf-gps-tec qa` — Palmer-as-null-control signal quality diagnostic."""
+"""Tests for `hf-tec qa` — Palmer-as-null-control signal quality diagnostic."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from hf_gps_tec import qa
+from hf_tec import qa
 
 
 # ---------------------------------------------------------------------------
@@ -86,10 +86,10 @@ def test_parse_duration_rejects_junk() -> None:
 
 
 def test_discover_instances_filters_legacy_and_backups(tmp_path: Path) -> None:
-    etc = tmp_path / "hf-gps-tec"
+    etc = tmp_path / "hf-tec"
     etc.mkdir()
     (etc / "AC0G-B1.toml").write_text("")
-    (etc / "hf-gps-tec-config.toml").write_text("")          # legacy
+    (etc / "hf-tec-config.toml").write_text("")          # legacy
     (etc / "AC0G-B1.toml.bak").write_text("")                # backup
     (etc / "AC0G-B1.toml.legacy").write_text("")             # backup
     found = qa.discover_instances(etc)
@@ -97,14 +97,14 @@ def test_discover_instances_filters_legacy_and_backups(tmp_path: Path) -> None:
 
 
 def test_resolve_instance_autopicks_when_single(tmp_path: Path) -> None:
-    etc = tmp_path / "hf-gps-tec"
+    etc = tmp_path / "hf-tec"
     etc.mkdir()
     (etc / "AC0G-B1.toml").write_text("")
     assert qa.resolve_instance(None, etc) == "AC0G-B1"
 
 
 def test_resolve_instance_requires_flag_when_multiple(tmp_path: Path) -> None:
-    etc = tmp_path / "hf-gps-tec"
+    etc = tmp_path / "hf-tec"
     etc.mkdir()
     (etc / "AC0G-B1.toml").write_text("")
     (etc / "AC0G-B2.toml").write_text("")
@@ -113,13 +113,13 @@ def test_resolve_instance_requires_flag_when_multiple(tmp_path: Path) -> None:
 
 
 def test_resolve_instance_explicit_is_returned_unchanged(tmp_path: Path) -> None:
-    etc = tmp_path / "hf-gps-tec"
+    etc = tmp_path / "hf-tec"
     etc.mkdir()
     assert qa.resolve_instance("AC0G-FUTURE", etc) == "AC0G-FUTURE"
 
 
 def test_resolve_instance_errors_when_empty(tmp_path: Path) -> None:
-    etc = tmp_path / "hf-gps-tec"
+    etc = tmp_path / "hf-tec"
     etc.mkdir()
     with pytest.raises(ValueError, match="no per-instance"):
         qa.resolve_instance(None, etc)
@@ -234,7 +234,7 @@ def _common_setup(tmp_path: Path) -> tuple[Path, Path, datetime]:
     etc.mkdir()
     _write_config(etc, "AC0G-B1")
     _write_stations(etc)
-    data_root = tmp_path / "var" / "lib" / "hf-gps-tec"
+    data_root = tmp_path / "var" / "lib" / "hf-tec"
     data_root.mkdir(parents=True)
     now = datetime(2026, 5, 29, 16, 30, tzinfo=timezone.utc)
     return etc, data_root, now

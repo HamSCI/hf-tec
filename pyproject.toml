@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hf-gps-tec"
+name = "hf-tec"
 version = "0.1.0"
 description = "HF PRN-coded beacon recorder for opportunistic ionospheric sounding"
 readme = "README.md"
@@ -35,7 +35,7 @@ dev = [
 ]
 
 [project.scripts]
-hf-gps-tec = "hf_gps_tec.cli:main"
+hf-tec = "hf_tec.cli:main"
 
 # Sibling editable installs — sigmond fleet upgrade pattern.
 [tool.uv.sources]

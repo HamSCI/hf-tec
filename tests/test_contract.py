@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from hf_gps_tec import config as cfgmod
-from hf_gps_tec import contract
+from hf_tec import config as cfgmod
+from hf_tec import contract
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -13,18 +13,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _load_default_cfg():
     return cfgmod.load_config(
-        REPO_ROOT / "config" / "hf-gps-tec-config.toml.template"
+        REPO_ROOT / "config" / "hf-tec-config.toml.template"
     )
 
 
 def _load_default_stations():
-    from hf_gps_tec.stations import load_stations
+    from hf_tec.stations import load_stations
     return load_stations(REPO_ROOT / "data" / "stations.toml")
 
 
 def test_inventory_required_fields() -> None:
     inv = contract.build_inventory(_load_default_cfg(), _load_default_stations())
-    assert inv["client"] == "hf-gps-tec"
+    assert inv["client"] == "hf-tec"
     assert inv["contract_version"] == "0.8"
     assert "instances" in inv and len(inv["instances"]) == 1
     inst = inv["instances"][0]
@@ -43,7 +43,7 @@ def test_inventory_surfaces_prn_stub_warning(monkeypatch) -> None:
     surface would still raise the alarm if the generator ever regressed
     to a stub.
     """
-    from hf_gps_tec.core import correlate as cc
+    from hf_tec.core import correlate as cc
     monkeypatch.setattr(cc, "PRN_IS_STUB", True)
     inv = contract.build_inventory(_load_default_cfg(), _load_default_stations())
     messages = " | ".join(i.get("message", "") for i in inv.get("issues", []))

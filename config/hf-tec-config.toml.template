@@ -1,8 +1,8 @@
-# hf-gps-tec configuration template
+# hf-tec configuration template
 #
-# Rendered to /etc/hf-gps-tec/hf-gps-tec-config.toml on
+# Rendered to /etc/hf-tec/hf-tec-config.toml on
 # install (if not already present).  Edit, then validate with
-# `sudo -u hfgpstec hf-gps-tec validate --json`.
+# `sudo -u hftec hf-tec validate --json`.
 
 [station]
 # Receiver station identifier — appears in every emitted record as `rx_id`.
@@ -90,7 +90,7 @@ codeless_detection_threshold_db = 6.0
 
 # ---------------------------------------------------------------------------
 # Transmitter list — which Tx the correlator banks against.  Names must
-# match entries in /etc/hf-gps-tec/data/stations.toml.
+# match entries in /etc/hf-tec/data/stations.toml.
 #
 # As of 2026-05-29 (Hysell): POKER_FLAT and GAKONA are operational;
 # PALMER is down for maintenance with an on-site repair visit planned
@@ -133,7 +133,7 @@ mode = "auto"
 [sinks]
 # Per-minute JSONL records — always on.
 local_jsonl     = true
-# Additive HamSCI sink — populates `hf_gps_tec.spots` when sigmond's local
+# Additive HamSCI sink — populates `hf_tec.spots` when sigmond's local
 # SQLite sink at /var/lib/sigmond/sink.db is writable.  Silent no-op
 # otherwise.
 hamsci_sink     = true

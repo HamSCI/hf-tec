@@ -20,7 +20,7 @@ _SRC = Path(__file__).resolve().parents[1] / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from hf_gps_tec.core.output import OutputSink  # noqa: E402
+from hf_tec.core.output import OutputSink  # noqa: E402
 
 
 class _StubCfg:
@@ -83,7 +83,7 @@ class ReporterIdOnRecordTests(unittest.TestCase):
         self.assertEqual(record.get("reporter_id"), "AC0G-B1")
 
     def test_locked_record_contract_version_is_current(self):
-        from hf_gps_tec.contract import CONTRACT_VERSION
+        from hf_tec.contract import CONTRACT_VERSION
         cfg = _minimal_cfg(reporter_id="AC0G-B1")
         record = self._capture_locked_record(cfg, instance="AC0G-B1")
         self.assertEqual(record.get("contract_version"), CONTRACT_VERSION)

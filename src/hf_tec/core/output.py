@@ -26,7 +26,7 @@ from .detect_codeless import CodelessDetection
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_DATA_ROOT = Path("/var/lib/hf-gps-tec")
+DEFAULT_DATA_ROOT = Path("/var/lib/hf-tec")
 
 
 class OutputSink:
@@ -37,10 +37,10 @@ class OutputSink:
 
     - **locked** — full PRN-correlator detections with per-Tx
       pseudorange.  Spool: ``<data_root>/<radiod>/locked/``.  Sink
-      table: ``hf_gps_tec.spots``.
+      table: ``hf_tec.spots``.
     - **codeless** — code-free autocorrelation detections (no Tx ID,
       no pseudorange).  Spool: ``<data_root>/<radiod>/codeless/``.
-      Sink table: ``hf_gps_tec_codeless.spots``.
+      Sink table: ``hf_tec_codeless.spots``.
     """
 
     def __init__(self, cfg: Config, instance: str, data_root: Optional[Path] = None):
@@ -61,8 +61,8 @@ class OutputSink:
             self._locked_jsonl = _JsonlWriter(self.data_root / instance / "locked")
             self._codeless_jsonl = _JsonlWriter(self.data_root / instance / "codeless")
         if cfg.sinks.hamsci_sink:
-            self._locked_sink = _HamsciSinkWriter(table="hf_gps_tec.spots")
-            self._codeless_sink = _HamsciSinkWriter(table="hf_gps_tec_codeless.spots")
+            self._locked_sink = _HamsciSinkWriter(table="hf_tec.spots")
+            self._codeless_sink = _HamsciSinkWriter(table="hf_tec_codeless.spots")
 
     def write_detection(
         self,
@@ -207,7 +207,7 @@ class _HamsciSinkWriter:
     when sigmond isn't installed (silent no-op).
     """
 
-    def __init__(self, table: str = "hf_gps_tec.spots") -> None:
+    def __init__(self, table: str = "hf_tec.spots") -> None:
         self._writer = None
         self._table = table
         try:

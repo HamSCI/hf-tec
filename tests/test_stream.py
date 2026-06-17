@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""hf-gps-tec stream timing: the frame anchor is derived from the RTP
+"""hf-tec stream timing: the frame anchor is derived from the RTP
 counter (rtp_to_wallclock + hf-timestd authority offset), NOT the host
 wall clock, and each frame's label projects off that anchor by sample
 count — the DASI2 RTP-reference invariant (METROLOGY.md §4.5)."""
@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-from hf_gps_tec.core.stream import HfGpsTecSource
+from hf_tec.core.stream import HfTecSource
 
 _BASE = 1_750_000_000.0       # arbitrary epoch seconds returned by rtp_to_wallclock
 _OFFSET_S = 4250 / 1e9        # hf-timestd authority offset (ns -> s)
@@ -41,7 +41,7 @@ def _install_fake_ka9q(rtp_to_wallclock):
 
 
 def _source(sr=100_000, n=10_000):
-    return HfGpsTecSource(
+    return HfTecSource(
         radiod_status="x", frequency_hz=2_900_000,
         sample_rate_hz=sr, frame_n_samples=n,
     )

@@ -30,7 +30,7 @@ def _configure_logging(quiet: bool) -> None:
     if quiet:
         logging.basicConfig(level=logging.WARNING, format="%(message)s", stream=sys.stderr)
         return
-    level = os.environ.get("HF_GPS_TEC_LOG_LEVEL") or os.environ.get(
+    level = os.environ.get("HF_TEC_LOG_LEVEL") or os.environ.get(
         "CLIENT_LOG_LEVEL"
     ) or "INFO"
     logging.basicConfig(
@@ -47,7 +47,7 @@ def _configure_logging(quiet: bool) -> None:
 
 def _handle_version(_args: argparse.Namespace) -> int:
     payload = {
-        "client": "hf-gps-tec",
+        "client": "hf-tec",
         "version": __version__,
         "contract_version": CONTRACT_VERSION,
         "git": dict(GIT_INFO),
@@ -64,16 +64,16 @@ def _degraded_inventory_payload(reason: str) -> dict:
     client as installed (with an issues entry explaining the degraded
     state) instead of "not installed"."""
     return {
-        "client": "hf-gps-tec",
+        "client": "hf-tec",
         "version": __version__,
         "git": dict(GIT_INFO),
         "contract_version": CONTRACT_VERSION,
         "config_path": None,
         "log_paths": {
-            "journal": "hf-gps-tec@*",
-            "file_dir": "/var/log/hf-gps-tec",
+            "journal": "hf-tec@*",
+            "file_dir": "/var/log/hf-tec",
         },
-        "log_level": os.environ.get("HF_GPS_TEC_LOG_LEVEL")
+        "log_level": os.environ.get("HF_TEC_LOG_LEVEL")
         or os.environ.get("CLIENT_LOG_LEVEL")
         or "INFO",
         "instances": [],
@@ -139,7 +139,7 @@ def _handle_status(args: argparse.Namespace) -> int:
     if cfg is None:
         return 1
     payload = {
-        "client": "hf-gps-tec",
+        "client": "hf-tec",
         "version": __version__,
         "config_path": str(cfg.config_path),
         "frequencies": [
@@ -156,7 +156,7 @@ def _handle_status(args: argparse.Namespace) -> int:
 
 
 def _read_daemon_pid() -> int | None:
-    pid_file = Path("/run/hf-gps-tec/daemon.pid")
+    pid_file = Path("/run/hf-tec/daemon.pid")
     if not pid_file.exists():
         return None
     try:
@@ -170,8 +170,8 @@ def _handle_daemon(args: argparse.Namespace) -> int:
     if cfg is None:
         return 1
     # Import lazily so a stub config can be validated without numpy/scipy.
-    from .core.daemon import HfGpsTecRecorder
-    recorder = HfGpsTecRecorder(cfg=cfg, instance=args.instance)
+    from .core.daemon import HfTecRecorder
+    recorder = HfTecRecorder(cfg=cfg, instance=args.instance)
     return recorder.run()
 
 
@@ -211,12 +211,12 @@ def _add_config_args(p: argparse.ArgumentParser) -> None:
         "--config",
         "-c",
         default=None,
-        help="Path to the recorder config TOML (default: /etc/hf-gps-tec/hf-gps-tec-config.toml).",
+        help="Path to the recorder config TOML (default: /etc/hf-tec/hf-tec-config.toml).",
     )
     p.add_argument(
         "--stations",
         default=None,
-        help="Path to the stations TOML (default: /etc/hf-gps-tec/stations.toml).",
+        help="Path to the stations TOML (default: /etc/hf-tec/stations.toml).",
     )
     p.add_argument(
         "--instance",
@@ -226,7 +226,7 @@ def _add_config_args(p: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="hf-gps-tec", description="HF PRN beacon recorder")
+    p = argparse.ArgumentParser(prog="hf-tec", description="HF PRN beacon recorder")
     sub = p.add_subparsers(dest="command", required=True)
 
     p_version = sub.add_parser("version", help="Emit version + git sha (JSON).")
@@ -278,7 +278,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Config command — CLIENT-CONTRACT §14 JSON-roundtrip surface.
     # Sigmond's in-TUI Textual wizard needs `show --json` + `apply
-    # --json -`.  hf-gps-tec had no `config` subcommand at all
+    # --json -`.  hf-tec had no `config` subcommand at all
     # before this; $EDITOR fallback (via `smd config edit` shellout)
     # is the only edit path otherwise.
     p_cfg = sub.add_parser("config",
@@ -330,7 +330,7 @@ def _handle_config(args: argparse.Namespace) -> int:
         return configurator.cmd_config_show(args)
     if sub == "apply":
         return configurator.cmd_config_apply(args)
-    print("usage: hf-gps-tec config {show|apply}", file=sys.stderr)
+    print("usage: hf-tec config {show|apply}", file=sys.stderr)
     return 2
 
 

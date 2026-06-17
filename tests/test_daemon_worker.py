@@ -6,7 +6,7 @@ crashed-then-restarted pipeline doesn't orphan its prior RTP subscription."""
 import threading
 import unittest
 
-from hf_gps_tec.core.daemon import _PipelineWorker
+from hf_tec.core.daemon import _PipelineWorker
 
 
 class _FakePipeline:

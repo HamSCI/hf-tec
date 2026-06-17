@@ -1,9 +1,9 @@
-"""TOML configuration loader for hf-gps-tec.
+"""TOML configuration loader for hf-tec.
 
 Per the sigmond client contract, `validate --json` is the
 authoritative check of a deployed config.  This module loads + lightly
 type-checks; serious cross-field validation lives in
-`hf_gps_tec.contract`.
+`hf_tec.contract`.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 
-DEFAULT_CONFIG_PATH = Path("/etc/hf-gps-tec/hf-gps-tec-config.toml")
+DEFAULT_CONFIG_PATH = Path("/etc/hf-tec/hf-tec-config.toml")
 
 
 @dataclass(frozen=True)
@@ -118,17 +118,17 @@ def resolve_config_path(
 
     Order matches sigmond Phase 5 multi-instance:
       1. `--config` argument if provided.
-      2. `TIMESTD_BEACON_CONFIG` / `HF_GPS_TEC_CONFIG` env var.
-      3. `/etc/hf-gps-tec/<instance>.toml` if instance given.
-      4. `/etc/hf-gps-tec/hf-gps-tec-config.toml`.
+      2. `TIMESTD_BEACON_CONFIG` / `HF_TEC_CONFIG` env var.
+      3. `/etc/hf-tec/<instance>.toml` if instance given.
+      4. `/etc/hf-tec/hf-tec-config.toml`.
     """
     if explicit is not None:
         return explicit
-    env = os.environ.get("HF_GPS_TEC_CONFIG")
+    env = os.environ.get("HF_TEC_CONFIG")
     if env:
         return Path(env)
     if instance:
-        per_instance = Path(f"/etc/hf-gps-tec/{instance}.toml")
+        per_instance = Path(f"/etc/hf-tec/{instance}.toml")
         if per_instance.exists():
             return per_instance
     return DEFAULT_CONFIG_PATH

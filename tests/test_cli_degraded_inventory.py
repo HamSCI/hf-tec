@@ -2,7 +2,7 @@
 contract payload AND exits 0 when config can't be read.
 
 The motivating bug: an unprivileged operator running `smd config show`
-shells out to `hf-gps-tec inventory --json`.  /etc/hf-gps-tec/*.toml
+shells out to `hf-tec inventory --json`.  /etc/hf-tec/*.toml
 is service-user-owned (mode 0640), so the read raises PermissionError.
 If inventory exits non-zero, sigmond's ContractAdapter never reaches
 `view.installed = True` and the operator-facing Config view reports
@@ -23,12 +23,12 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-# Add src/ to path so we can import hf_gps_tec without installing.
+# Add src/ to path so we can import hf_tec without installing.
 _SRC = Path(__file__).resolve().parents[1] / 'src'
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from hf_gps_tec import cli  # noqa: E402
+from hf_tec import cli  # noqa: E402
 
 
 def _make_args() -> argparse.Namespace:
@@ -40,7 +40,7 @@ class DegradedInventoryTests(unittest.TestCase):
     def _run_inventory_with_load_error(self, exc: Exception) -> tuple[int, dict]:
         buf = io.StringIO()
         with mock.patch(
-            "hf_gps_tec.cli.load_config", side_effect=exc,
+            "hf_tec.cli.load_config", side_effect=exc,
         ), redirect_stdout(buf):
             rc = cli._handle_inventory(_make_args())
         return rc, json.loads(buf.getvalue())
@@ -51,9 +51,9 @@ class DegradedInventoryTests(unittest.TestCase):
         produce contract-shaped JSON so sigmond marks installed=True."""
         rc, payload = self._run_inventory_with_load_error(
             PermissionError(13, "Permission denied",
-                            "/etc/hf-gps-tec/hf-gps-tec-config.toml"))
+                            "/etc/hf-tec/hf-tec-config.toml"))
         self.assertEqual(rc, 0)
-        self.assertEqual(payload["client"], "hf-gps-tec")
+        self.assertEqual(payload["client"], "hf-tec")
         self.assertEqual(payload["contract_version"], "0.8")
         self.assertEqual(payload["instances"], [])
         self.assertIsNone(payload["config_path"])
@@ -68,9 +68,9 @@ class DegradedInventoryTests(unittest.TestCase):
         """Legacy shared-config absent on a per-instance host."""
         rc, payload = self._run_inventory_with_load_error(
             FileNotFoundError(2, "No such file or directory",
-                              "/etc/hf-gps-tec/hf-gps-tec-config.toml"))
+                              "/etc/hf-tec/hf-tec-config.toml"))
         self.assertEqual(rc, 0)
-        self.assertEqual(payload["client"], "hf-gps-tec")
+        self.assertEqual(payload["client"], "hf-tec")
         self.assertEqual(payload["instances"], [])
         self.assertEqual(len(payload["issues"]), 1)
         self.assertIn("not found", payload["issues"][0]["message"])
@@ -80,15 +80,15 @@ class DegradedInventoryTests(unittest.TestCase):
         without reading config, so exit nonzero stays the right call."""
         buf = io.StringIO()
         with mock.patch(
-            "hf_gps_tec.cli.load_config", side_effect=PermissionError(
-                13, "Permission denied", "/etc/hf-gps-tec/x.toml"),
+            "hf_tec.cli.load_config", side_effect=PermissionError(
+                13, "Permission denied", "/etc/hf-tec/x.toml"),
         ), redirect_stdout(buf):
             rc = cli._handle_validate(_make_args())
         self.assertEqual(rc, 1)
         # Same degraded payload printed (so a caller can still inspect
         # why), but the exit code distinguishes inventory from validate.
         payload = json.loads(buf.getvalue())
-        self.assertEqual(payload["client"], "hf-gps-tec")
+        self.assertEqual(payload["client"], "hf-tec")
         self.assertEqual(payload["issues"][0]["severity"], "fail")
 
     def test_degraded_payload_carries_all_contract_keys(self):

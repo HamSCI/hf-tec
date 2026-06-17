@@ -1,9 +1,9 @@
 [Unit]
 Description=HF PRN beacon QA snapshot timer for %i
-Documentation=https://github.com/mijahauan/hf-gps-tec
-# Bound to the recorder so disabling hf-gps-tec@%i also halts
+Documentation=https://github.com/mijahauan/hf-tec
+# Bound to the recorder so disabling hf-tec@%i also halts
 # snapshots for that instance (no orphan timers).
-PartOf=hf-gps-tec@%i.service
+PartOf=hf-tec@%i.service
 
 [Timer]
 # Every 15 minutes on the wall-clock — :00, :15, :30, :45.  Aligned
@@ -13,7 +13,7 @@ OnCalendar=*:00/15
 # Persistent=true catches up after host downtime so a reboot does not
 # leave a gap in the qa stream.
 Persistent=true
-Unit=hf-gps-tec-qa@%i.service
+Unit=hf-tec-qa@%i.service
 
 [Install]
 WantedBy=timers.target

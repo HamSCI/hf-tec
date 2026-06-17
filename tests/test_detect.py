@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hf_gps_tec.core import detect
+from hf_tec.core import detect
 
 
 def _make_power_matrix(

@@ -5,7 +5,7 @@ working with code in this repository.
 
 ## What this project is
 
-**hf-gps-tec** is a Python client for the HamSCI (Ham Radio
+**hf-tec** is a Python client for the HamSCI (Ham Radio
 Science Citizen Investigation) sigmond suite that mimics the receive
 sites of the high-frequency (HF) PRN-coded beacon network described
 by Hysell et al. (2018, *JGR Space Physics* 123:6851–6864) and
@@ -46,7 +46,7 @@ previously-open gaps are closed.
 ## Authors
 
 - Michael Hauan (AC0G, GitHub: mijahauan)
-- Repo: https://github.com/mijahauan/hf-gps-tec (pending)
+- Repo: https://github.com/mijahauan/hf-tec (pending)
 
 ## Quick reference
 
@@ -61,12 +61,12 @@ uv run pytest -k contract -v                   # by keyword
 sudo ./scripts/install.sh           # first-run: user, venv, config, systemd
 sudo ./scripts/deploy.sh            # ongoing: refresh editable install + restart
 
-# CLI (current — verify against `hf-gps-tec --help`)
-hf-gps-tec inventory --json      # per-instance resource view
-hf-gps-tec validate --json       # config validation
-hf-gps-tec version --json        # version + git sha
-hf-gps-tec status                # health check
-hf-gps-tec daemon --config /etc/hf-gps-tec/hf-gps-tec-config.toml --radiod-id my-rx888
+# CLI (current — verify against `hf-tec --help`)
+hf-tec inventory --json      # per-instance resource view
+hf-tec validate --json       # config validation
+hf-tec version --json        # version + git sha
+hf-tec status                # health check
+hf-tec daemon --config /etc/hf-tec/hf-tec-config.toml --radiod-id my-rx888
 ```
 
 ## Architecture
@@ -77,7 +77,7 @@ radiod (ka9q-radio, IQ preset)
   │  ka9q-python ensure_channel(low_edge, high_edge) → ~100 kHz BW,
   │  100 kS/s decimated I/Q
   ▼
-hf-gps-tec daemon (one per radiod, = one systemd instance)
+hf-tec daemon (one per radiod, = one systemd instance)
   │
   ├─ FreqPipeline(2.9 MHz)
   │    ├─ ka9q.MultiStream subscription → 100 ms frames (10,000 samples)
@@ -91,23 +91,23 @@ hf-gps-tec daemon (one per radiod, = one systemd instance)
   ▼
 Output (core/output.py)
   │   one JSONL record per (Tx, Rx, freq) per minute
-  │   /var/lib/hf-gps-tec/<radiod_id>/YYYY/MM/DD.jsonl
-  │   additive hf_gps_tec.spots row via sigmond.hamsci_sink.Writer
+  │   /var/lib/hf-tec/<radiod_id>/YYYY/MM/DD.jsonl
+  │   additive hf_tec.spots row via sigmond.hamsci_sink.Writer
 ```
 
 ## Project structure
 
 ```
-src/hf_gps_tec/
+src/hf_tec/
   cli.py              # argparse entry; subcommands listed above
   config.py           # TOML loader, per-instance resolution
   contract.py         # inventory/validate JSON builders (contract v0.7)
   stations.py         # known Tx/Rx site database (loaded from
-                      # /etc/hf-gps-tec/stations.toml)
+                      # /etc/hf-tec/stations.toml)
   version.py          # GIT_INFO dict for provenance
   core/
-    daemon.py         # HfGpsTecRecorder: orchestrates per-frequency pipelines
-    stream.py         # HfGpsTecSource: ka9q-python wideband I/Q + framing
+    daemon.py         # HfTecRecorder: orchestrates per-frequency pipelines
+    stream.py         # HfTecSource: ka9q-python wideband I/Q + framing
     correlate.py      # PRN code generator (STUB) + FFT-based correlator
     coherent.py       # coherent integration → range-Doppler matrix
     detect.py         # first-hop detector + Doppler 1st-moment + amplitude
@@ -115,13 +115,13 @@ src/hf_gps_tec/
     output.py         # JSONL writer + hamsci_sink writer
 tests/                # config / contract / correlator / detector tests
 config/
-  hf-gps-tec-config.toml.template
+  hf-tec-config.toml.template
 data/
   stations.toml       # network topology — three Alaska Tx (Poker Flat,
                       # Gakona, Palmer) + planned Cornell; per-site
                       # prn_seed required for locked-mode correlation
 systemd/
-  hf-gps-tec@.service  # Template unit; %i = radiod_id
+  hf-tec@.service  # Template unit; %i = radiod_id
 scripts/
   install.sh          # First-run bootstrap (Pattern A)
   deploy.sh           # Editable-install refresh
@@ -132,7 +132,7 @@ docs/
 
 ## Key design decisions
 
-- **One systemd instance per radiod** (`hf-gps-tec@<radiod_id>.service`),
+- **One systemd instance per radiod** (`hf-tec@<radiod_id>.service`),
   matching the other recorders.
 - **One ka9q-radio channel per Tx frequency.** Wideband I/Q at ≈100 kS/s,
   with `low_edge`/`high_edge` overrides on `ensure_channel` so the
@@ -156,7 +156,7 @@ docs/
 
 ## Client contract (v0.7)
 
-`src/hf_gps_tec/contract.py` declares
+`src/hf_tec/contract.py` declares
 `CONTRACT_VERSION = "0.7"`.  Authoritative spec:
 `/opt/git/sigmond/sigmond/docs/CLIENT-CONTRACT.md`.
 
@@ -169,11 +169,11 @@ Sections implemented in scaffolding:
   from `ChannelInfo`, never client-specified.
 - **§8** — `RADIOD_<id>_CHAIN_DELAY_NS` read from `coordination.env`.
 - **§10 / §11** — `log_paths` in inventory output; daemon process log
-  goes to systemd journal.  `HF_GPS_TEC_LOG_LEVEL` /
+  goes to systemd journal.  `HF_TEC_LOG_LEVEL` /
   `CLIENT_LOG_LEVEL` honored on startup.
 - **§12** — validate hardening (config presence, station list sanity,
   PRN-stub warning surfaced explicitly).
-- **§17** — hamsci sink writer (`hf_gps_tec.spots`) alongside canonical
+- **§17** — hamsci sink writer (`hf_tec.spots`) alongside canonical
   JSONL.
 
 Deferred:
@@ -192,13 +192,13 @@ Deferred:
 
 ## Production paths
 
-- Config: `/etc/hf-gps-tec/hf-gps-tec-config.toml`
-- Stations DB: `/etc/hf-gps-tec/stations.toml`
-- JSONL spool: `/var/lib/hf-gps-tec/<radiod_id>/YYYY/MM/DD.jsonl`
-- Per-band logs: systemd journal — `journalctl -u hf-gps-tec@<radiod_id>`
-- Venv: `/opt/hf-gps-tec/venv`
-- Source: `/opt/git/sigmond/hf-gps-tec` (editable install)
-- Service user: `hfgpstec:hfgpstec`
+- Config: `/etc/hf-tec/hf-tec-config.toml`
+- Stations DB: `/etc/hf-tec/stations.toml`
+- JSONL spool: `/var/lib/hf-tec/<radiod_id>/YYYY/MM/DD.jsonl`
+- Per-band logs: systemd journal — `journalctl -u hf-tec@<radiod_id>`
+- Venv: `/opt/hf-tec/venv`
+- Source: `/opt/git/sigmond/hf-tec` (editable install)
+- Service user: `hftec:hftec`
 
 ## References
 

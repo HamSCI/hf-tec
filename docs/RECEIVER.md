@@ -1,7 +1,7 @@
-# hf-gps-tec receiver methodology
+# hf-tec receiver methodology
 
 This document describes the high-frequency (HF) pseudorandom-noise-
-(PRN-) coded beacon network that `hf-gps-tec` is built to receive,
+(PRN-) coded beacon network that `hf-tec` is built to receive,
 the receiver digital-signal-processing (DSP) chain, the output
 schema, and the waveform-spec status (formerly open gaps,
 resolved by Hysell on 2026-05-29).
@@ -67,7 +67,7 @@ emitted simultaneously from each site.
 
 **Receive sites.**  Not centrally administered in the current
 deployment.  Any sigmond station with HF reception infrastructure
-can run `hf-gps-tec` and contribute observations; the local
+can run `hf-tec` and contribute observations; the local
 station identifies itself via the `[station]` block in the
 recorder config.  The Peru deployment used dual-antenna receive
 sites (northeast-southwest plus northwest-southeast) to permit
@@ -119,7 +119,7 @@ against each one's distinct replica in parallel.  Per Hysell
 (2026-05-29), the planned migration to 50 kHz BW reflects his
 view that 100 kHz "probably exceeds the channel capacity much of
 the time"; the cutover is a single configuration change in
-`hf-gps-tec-config.toml`.
+`hf-tec-config.toml`.
 
 **Daytime D-region absorption.**  At 2.9/3.4 MHz the D-region
 nearly kills the signal during daylight hours.  At high northern
@@ -137,7 +137,7 @@ digitally down-converts and decimates in two stages — first to
 per second (kS/s) I/Q at baseband for each frequency channel.
 Two carriers in, two narrow baseband streams out.
 
-`hf-gps-tec` lets `radiod` (ka9q-radio) own all the
+`hf-tec` lets `radiod` (ka9q-radio) own all the
 down-conversion and decimation, producing the same per-carrier
 baseband streams directly: one ka9q-radio channel per Tx
 frequency, 100 kS/s in-phase / quadrature (I/Q) baseband
@@ -249,8 +249,8 @@ snr_estimate_db = 10·log10(|r_code| / (1 − |r_code|))
   │
   ▼
 One JSONL record per integration window emitted to
-  /var/lib/hf-gps-tec/<radiod>/codeless/YYYY/MM/DD.jsonl
-plus an additive row in sigmond's hf_gps_tec_codeless.spots
+  /var/lib/hf-tec/<radiod>/codeless/YYYY/MM/DD.jsonl
+plus an additive row in sigmond's hf_tec_codeless.spots
 ```
 
 **What this mode gives:**
@@ -303,11 +303,11 @@ One JSONL record per (transmitter, receiver, frequency) per minute,
 written to:
 
 ```
-/var/lib/hf-gps-tec/<radiod_id>/YYYY/MM/DD.jsonl
+/var/lib/hf-tec/<radiod_id>/YYYY/MM/DD.jsonl
 ```
 
 and, when sigmond's local sink is writable, mirrored as one row in
-the `hf_gps_tec.spots` table of `/var/lib/sigmond/sink.db`.
+the `hf_tec.spots` table of `/var/lib/sigmond/sink.db`.
 
 ### Fields
 
@@ -325,7 +325,7 @@ the `hf_gps_tec.spots` table of `/var/lib/sigmond/sink.db`.
 | `n_hops`         | 1 (first-hop only at v0.1.0; multi-hop is future work). |
 | `lock_quality`   | 0–1 heuristic (peak prominence + slow-time phase consistency). |
 | `noise_floor_db` | Estimated incoherent noise floor in the range-Doppler matrix. |
-| `processing_version` | `hf-gps-tec` version string. |
+| `processing_version` | `hf-tec` version string. |
 | `contract_version`   | `0.8`. |
 
 The schema is upstream-compatible with the `.out.mod` text format
@@ -406,7 +406,7 @@ GPS-disciplined network.  Code-epoch grid: `t_chip0 mod 100 ms = 0`.
 Still open.  Hysell 2024 reports amplitude (in dB) without
 specifying whether it is calibrated to an absolute reference,
 relative to in-band noise, or referenced to a synthetic peak.
-Since `hf-gps-tec` reports dB above its own noise floor, this
+Since `hf-tec` reports dB above its own noise floor, this
 only matters when comparing across receivers; the inversion
 uses each receiver's series internally, so this gap is not
 blocking.

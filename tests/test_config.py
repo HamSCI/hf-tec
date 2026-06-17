@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from hf_gps_tec import config as cfgmod
+from hf_tec import config as cfgmod
 
 
 REPO_TEMPLATE = (
     Path(__file__).resolve().parents[1]
     / "config"
-    / "hf-gps-tec-config.toml.template"
+    / "hf-tec-config.toml.template"
 )
 
 

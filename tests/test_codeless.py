@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hf_gps_tec.core.detect_codeless import (
+from hf_tec.core.detect_codeless import (
     DEFAULT_REFERENCE_LAG_OFFSET_S,
     codeless_detect,
     lagged_autocorr,

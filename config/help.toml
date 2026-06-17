@@ -1,4 +1,4 @@
-# hf-gps-tec operator-help sidecar.
+# hf-tec operator-help sidecar.
 #
 # Per-key title / help / example / validator_hint / required, plus
 # `hidden = true` to keep tier-1 invariants off the wizard surface.
@@ -24,8 +24,8 @@ validator_hint = "1-9 letters/digits/slashes"
 required       = true
 
 [station.station_id]
-title          = "PSWS station ID (HF-GPS-TEC)"
-help           = """The PSWS-assigned station ID for HF-GPS-TEC
+title          = "PSWS station ID (HF-TEC)"
+help           = """The PSWS-assigned station ID for HF-TEC
 uploads.  PSWS treats each measurement as its own station, so this
 ID is distinct from a co-resident hf-timestd's Grape ID and
 mag-recorder's RM3100 ID.

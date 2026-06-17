@@ -1,7 +1,7 @@
 """Tx/Rx site database loader.
 
 The default station list ships in `data/stations.toml`; the installer
-copies it to `/etc/hf-gps-tec/stations.toml`.  Operators add
+copies it to `/etc/hf-tec/stations.toml`.  Operators add
 new sites by editing the installed copy.
 """
 
@@ -16,11 +16,11 @@ from typing import Optional
 # Per-deploy install puts stations.toml under a subdirectory so it isn't
 # picked up by sigmond's instance scanner, which globs /etc/<client>/*.toml
 # and treats every match (except legacy config names) as an instance config.
-DEFAULT_STATIONS_PATH = Path("/etc/hf-gps-tec/data/stations.toml")
+DEFAULT_STATIONS_PATH = Path("/etc/hf-tec/data/stations.toml")
 # Legacy/v0.1.0 install location — kept as a fallback so an upgrade
 # without re-running install.sh still works until the operator moves
 # the file.
-LEGACY_STATIONS_PATH = Path("/etc/hf-gps-tec/stations.toml")
+LEGACY_STATIONS_PATH = Path("/etc/hf-tec/stations.toml")
 REPO_DEFAULT_PATH = Path(__file__).resolve().parents[2] / "data" / "stations.toml"
 
 
@@ -83,8 +83,8 @@ def load_stations(path: Optional[Path] = None) -> StationDb:
     """Load a station database from TOML.
 
     Search order if `path` is None:
-      1. `/etc/hf-gps-tec/data/stations.toml` (current install location)
-      2. `/etc/hf-gps-tec/stations.toml` (legacy / pre-fix location)
+      1. `/etc/hf-tec/data/stations.toml` (current install location)
+      2. `/etc/hf-tec/stations.toml` (legacy / pre-fix location)
       3. the repo's `data/stations.toml` (development fallback)
     """
     candidates = (

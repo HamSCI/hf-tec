@@ -77,10 +77,10 @@ RANGE_TOLERANCE_KM: float = 200.0
 EARTH_RADIUS_KM: float = 6371.0
 
 #: Default data root for locked-mode JSONL records.
-DEFAULT_DATA_ROOT: Path = Path("/var/lib/hf-gps-tec")
+DEFAULT_DATA_ROOT: Path = Path("/var/lib/hf-tec")
 
 #: Default config root for per-instance file discovery.
-DEFAULT_ETC_ROOT: Path = Path("/etc/hf-gps-tec")
+DEFAULT_ETC_ROOT: Path = Path("/etc/hf-tec")
 
 #: Tx statuses that should NEVER produce real signal.  Palmer is in
 #: this set today; Cornell is too (planned, not yet on-air).  Operational
@@ -169,10 +169,10 @@ def parse_duration(s: str) -> timedelta:
 # ---------------------------------------------------------------------------
 
 
-#: Per-instance config files are ``/etc/hf-gps-tec/<reporter_id>.toml``.
+#: Per-instance config files are ``/etc/hf-tec/<reporter_id>.toml``.
 #: Anything matching these basename patterns is NOT a per-instance file.
 _NON_INSTANCE_CONFIG_NAMES: frozenset[str] = frozenset({
-    "hf-gps-tec-config.toml",       # legacy single-instance template
+    "hf-tec-config.toml",       # legacy single-instance template
 })
 
 _NON_INSTANCE_SUFFIX_RE = re.compile(
@@ -182,7 +182,7 @@ _NON_INSTANCE_SUFFIX_RE = re.compile(
 
 
 def discover_instances(etc_root: Path = DEFAULT_ETC_ROOT) -> list[str]:
-    """List per-instance reporter_ids by scanning ``/etc/hf-gps-tec/``.
+    """List per-instance reporter_ids by scanning ``/etc/hf-tec/``.
 
     Returns an empty list if the directory is missing or unreadable —
     caller decides whether that is an error.
@@ -625,7 +625,7 @@ def format_human(result: QaResult) -> str:
     """Render a QaResult as a plain-text table for terminal display."""
     lines: list[str] = []
     lines.append(
-        f"hf-gps-tec QA -- instance {result.instance}, "
+        f"hf-tec QA -- instance {result.instance}, "
         f"window: last {result.window_minutes:.0f} minutes "
         f"(UTC {result.window_start.strftime('%Y-%m-%d %H:%M')} "
         f"-> {result.window_end.strftime('%H:%M')})"
@@ -691,7 +691,7 @@ def format_human(result: QaResult) -> str:
         )
     lines.append("")
     lines.append(
-        f"Thresholds (constants in hf_gps_tec.qa):"
+        f"Thresholds (constants in hf_tec.qa):"
     )
     lines.append(
         f"  SIGNAL: vs_palmer >= {SIGNAL_VS_PALMER}x "

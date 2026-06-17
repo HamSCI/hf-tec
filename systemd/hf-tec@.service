@@ -1,14 +1,14 @@
 [Unit]
 Description=HF PRN beacon recorder for ka9q-radio (%i)
-Documentation=https://github.com/mijahauan/hf-gps-tec
+Documentation=https://github.com/mijahauan/hf-tec
 After=network-online.target radiod@%i.service
 Wants=network-online.target
 
 [Service]
 Type=notify
-User=hfgpstec
-Group=hfgpstec
-ExecStart=/usr/local/bin/hf-gps-tec daemon --instance %i
+User=hftec
+Group=hftec
+ExecStart=/usr/local/bin/hf-tec daemon --instance %i
 Restart=on-failure
 RestartSec=15
 TimeoutStopSec=30
@@ -21,10 +21,10 @@ MemoryMax=512M
 MemorySwapMax=0
 
 # Logging — daemon process log goes to systemd journal; per-frame data
-# goes to /var/lib/hf-gps-tec/<radiod_id>/.
+# goes to /var/lib/hf-tec/<radiod_id>/.
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=hf-gps-tec@%i
+SyslogIdentifier=hf-tec@%i
 
 # Environment — sigmond's coordination.env supplies per-radiod chain delays
 # and runtime log-level overrides.
@@ -36,8 +36,8 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 NoNewPrivileges=true
-ReadWritePaths=/var/lib/hf-gps-tec /var/log/hf-gps-tec /var/lib/sigmond
-RuntimeDirectory=hf-gps-tec
+ReadWritePaths=/var/lib/hf-tec /var/log/hf-tec /var/lib/sigmond
+RuntimeDirectory=hf-tec
 RuntimeDirectoryMode=0750
 
 [Install]

@@ -3,7 +3,7 @@ AuthorityReader — reads /run/hf-timestd/authority.json published by
 hf-timestd's authority manager. Consumer side of the schema v1 contract
 documented in hf-timestd/docs/METROLOGY.md §4.5.2.
 
-Under the RTP-reference labeling invariant, hf-gps-tec labels each
+Under the RTP-reference labeling invariant, hf-tec labels each
 frame's start time from the RTP sample counter (rtp_to_wallclock) plus
 this published offset.  Wire-compatible with the codar-sounder /
 psk-recorder / wspr-recorder siblings (identical JSON schema).
@@ -66,7 +66,7 @@ class AuthoritySnapshot:
     ) -> dict:
         """Canonical timing-provenance block for data records.
 
-        Identical across all sigmond clients (wspr/psk/codar/hf-gps-tec):
+        Identical across all sigmond clients (wspr/psk/codar/hf-tec):
         the single authoritative record of how a sample's UTC label was
         derived, sourced entirely from hf-timestd's adjudicated
         authority.json — never from a secondary status feed. See

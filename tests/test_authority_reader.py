@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for hf-gps-tec's AuthorityReader + the canonical
+"""Unit tests for hf-tec's AuthorityReader + the canonical
 timing-provenance block (shared schema across all sigmond clients)."""
 
 import json
@@ -9,7 +9,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from hf_gps_tec.core.authority_reader import (
+from hf_tec.core.authority_reader import (
     AuthorityReader,
     standalone_timing_authority,
 )

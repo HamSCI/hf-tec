@@ -1,4 +1,4 @@
-"""HfGpsTecRecorder — top-level daemon orchestrator.
+"""HfTecRecorder — top-level daemon orchestrator.
 
 Spawns one FreqPipeline per enabled frequency, each subscribing to
 its own ka9q-radio channel.  Manages lifecycle (start, graceful stop,
@@ -21,7 +21,7 @@ from ..stations import StationDb, load_stations
 from .codeless_pipeline import CodelessPipeline
 from .output import OutputSink
 from .pipeline import FreqPipeline
-from .stream import HfGpsTecSource
+from .stream import HfTecSource
 
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class _PipelineWorker:
 
 
 @dataclass
-class HfGpsTecRecorder:
+class HfTecRecorder:
     cfg: Config
     instance: str             # = reporter_id ≡ systemd @<i>; also output-path dir
     stations: Optional[StationDb] = None
@@ -154,7 +154,7 @@ class HfGpsTecRecorder:
         signal.signal(signal.SIGINT, lambda *_: self._stop.set())
 
         resolved_mode = self.cfg.resolved_mode()
-        _sd_notify(f"READY=1\nSTATUS=hf-gps-tec running ({resolved_mode} mode)")
+        _sd_notify(f"READY=1\nSTATUS=hf-tec running ({resolved_mode} mode)")
         logger.info(
             "daemon ready: radiod=%s instance=%s frequencies=%s mode=%s",
             self.radiod_id, self.instance,
@@ -179,7 +179,7 @@ class HfGpsTecRecorder:
     ):
         """Build either a FreqPipeline (locked mode) or CodelessPipeline,
         based on the resolved operating mode."""
-        source = HfGpsTecSource(
+        source = HfTecSource(
             radiod_status=self.cfg.ka9q.status_address,
             frequency_hz=freq_cfg.center_hz,
             sample_rate_hz=freq_cfg.sample_rate_hz,

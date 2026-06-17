@@ -1,28 +1,28 @@
 """CLIENT-CONTRACT §14 — JSON config-roundtrip surface.
 
-hf-gps-tec didn't have a `config` subcommand at all before this
+hf-tec didn't have a `config` subcommand at all before this
 module — whiptail-style wizards were never written.  This adds the
 JSON contract so sigmond's in-TUI Textual config wizard can edit
-hf-gps-tec's per-instance config in place of dropping the operator
+hf-tec's per-instance config in place of dropping the operator
 to $EDITOR.
 
-  * ``hf-gps-tec config show --json [--defaults] [--config PATH]``
+  * ``hf-tec config show --json [--defaults] [--config PATH]``
     reads the TOML file on disk and emits it as JSON on stdout.
-    ``--defaults`` is accepted but currently a no-op (hf-gps-tec
+    ``--defaults`` is accepted but currently a no-op (hf-tec
     has no canonical DEFAULTS dict; the file is the source of truth).
 
-  * ``hf-gps-tec config apply --json -`` reads a JSON dict from
+  * ``hf-tec config apply --json -`` reads a JSON dict from
     stdin, deep-merges into the existing TOML, and atomically
     rewrites via ``.part`` + rename.
 
-Section whitelist matches hf-gps-tec's actual schema: [station],
+Section whitelist matches hf-tec's actual schema: [station],
 [ka9q], [processing], [transmitters], [mode], [sinks], [instance],
 plus the ``[[frequency]]`` array-of-tables (PRN beacon frequency
 slots).  Per-key type validation is structural only; sigmond's
 wizard owns input typing on its end.
 
-Operator-callable note: ``/etc/hf-gps-tec/`` is mode 0750 owned by
-the hfgpstec service user, so an unprivileged operator running
+Operator-callable note: ``/etc/hf-tec/`` is mode 0750 owned by
+the hftec service user, so an unprivileged operator running
 sigmond's TUI can't read it.  Sigmond's config wizard always
 invokes ``apply`` under sudo via ``mutation.confirm_and_run``, so
 that side is fine.  ``show`` works for operators because sigmond's
@@ -30,7 +30,7 @@ that side is fine.  ``show`` works for operators because sigmond's
 wizard.
 
 Pattern lifted from wspr-recorder commit ad8f637 — closest match
-since hf-gps-tec lacks a DEFAULTS dict.
+since hf-tec lacks a DEFAULTS dict.
 """
 
 from __future__ import annotations
@@ -48,8 +48,8 @@ except ModuleNotFoundError:
 
 
 DEFAULT_CONFIG_PATH = Path(
-    os.environ.get("HF_GPS_TEC_CONFIG")
-    or "/etc/hf-gps-tec/hf-gps-tec-config.toml"
+    os.environ.get("HF_TEC_CONFIG")
+    or "/etc/hf-tec/hf-tec-config.toml"
 )
 
 
@@ -68,8 +68,8 @@ _APPLY_ALLOWED_SECTIONS = {
 def cmd_config_show(args) -> int:
     """Emit the on-disk TOML as JSON on stdout.
 
-    Operator-callable caveat: when ``/etc/hf-gps-tec/`` is 0750 owned
-    by the hfgpstec service user, an unprivileged operator running
+    Operator-callable caveat: when ``/etc/hf-tec/`` is 0750 owned
+    by the hftec service user, an unprivileged operator running
     sigmond's TUI gets PermissionError on stat() of the config file —
     sigmond's probe fails and falls back to the whiptail flow.  Run
     under sudo for the JSON path; the in-TUI wizard route lights up

@@ -47,23 +47,23 @@ def build_inventory(cfg: Config, stations: StationDb | None = None) -> dict:
         "timing_authority_applied": None,
         "radiod_status_dns": cfg.ka9q.status_address,
         "data_path": {"kind": "radiod-ka9q-python", "radiod_id": None},
-        "control_socket": "/run/hf-gps-tec/control.sock",
+        "control_socket": "/run/hf-tec/control.sock",
         "transmitters_enabled": list(cfg.transmitters_enabled),
         "mode_configured": cfg.mode.mode,
         "mode_resolved":   resolved_mode,
     }
 
     return {
-        "client": "hf-gps-tec",
+        "client": "hf-tec",
         "version": __version__,
         "git": dict(GIT_INFO),
         "contract_version": CONTRACT_VERSION,
         "config_path": str(cfg.config_path),
         "log_paths": {
-            "journal": "hf-gps-tec@*",
-            "file_dir": "/var/log/hf-gps-tec",
+            "journal": "hf-tec@*",
+            "file_dir": "/var/log/hf-tec",
         },
-        "log_level": os.environ.get("HF_GPS_TEC_LOG_LEVEL")
+        "log_level": os.environ.get("HF_TEC_LOG_LEVEL")
         or os.environ.get("CLIENT_LOG_LEVEL")
         or "INFO",
         "instances": [inv_instance],
@@ -75,12 +75,12 @@ def build_inventory(cfg: Config, stations: StationDb | None = None) -> dict:
 def _data_sinks(cfg: Config, resolved_mode: str) -> list[dict]:
     sinks = []
     subdir = "codeless" if resolved_mode == "codeless" else "locked"
-    table = "hf_gps_tec_codeless.spots" if resolved_mode == "codeless" else "hf_gps_tec.spots"
+    table = "hf_tec_codeless.spots" if resolved_mode == "codeless" else "hf_tec.spots"
     if cfg.sinks.local_jsonl:
         sinks.append({
             "kind": "file",
-            "target": f"/var/lib/hf-gps-tec/<radiod>/{subdir}",
-            "schema_ref": f"hf_gps_tec.{subdir}.jsonl.v1",
+            "target": f"/var/lib/hf-tec/<radiod>/{subdir}",
+            "schema_ref": f"hf_tec.{subdir}.jsonl.v1",
             "retention_days": 0,
             "mb_per_day": 0,
         })

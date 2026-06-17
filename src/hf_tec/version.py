@@ -52,7 +52,7 @@ def get_git_info() -> _GitInfo:
         short=short,
         ref=ref,
         dirty=bool(dirty_status),
-        source=str(_REPO_ROOT / "src" / "hf_gps_tec"),
+        source=str(_REPO_ROOT / "src" / "hf_tec"),
     )
 
 

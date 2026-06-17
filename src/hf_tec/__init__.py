@@ -1,4 +1,4 @@
-"""hf-gps-tec — HF PRN-coded beacon recorder for sigmond.
+"""hf-tec — HF PRN-coded beacon recorder for sigmond.
 
 See README.md and docs/RECEIVER.md for background.
 """

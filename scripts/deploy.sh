@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# hf-gps-tec deploy.sh — refresh the editable install and restart
+# hf-tec deploy.sh — refresh the editable install and restart
 # running instances.  Idempotent.  Use after pulling new commits.
 
 set -euo pipefail
 
-NAME="hf-gps-tec"
-USER="hfgpstec"
-GROUP="hfgpstec"
+NAME="hf-tec"
+USER="hftec"
+GROUP="hftec"
 INSTALL_DIR="/opt/${NAME}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -43,10 +43,10 @@ UV_PROJECT_ENVIRONMENT="${INSTALL_DIR}/venv" uv sync \
 chown -R "${USER}:${GROUP}" "${INSTALL_DIR}/venv"
 
 # Restart any active instances.
-mapfile -t INSTANCES < <(systemctl list-units --no-legend --plain --state=active 'hf-gps-tec@*.service' | awk '{print $1}')
+mapfile -t INSTANCES < <(systemctl list-units --no-legend --plain --state=active 'hf-tec@*.service' | awk '{print $1}')
 if [[ "${#INSTANCES[@]}" -gt 0 ]]; then
     echo "restarting: ${INSTANCES[*]}"
     systemctl restart "${INSTANCES[@]}"
 else
-    echo "no active hf-gps-tec instances; nothing to restart"
+    echo "no active hf-tec instances; nothing to restart"
 fi

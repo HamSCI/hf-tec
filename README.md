@@ -1,4 +1,4 @@
-# hf-gps-tec
+# hf-tec
 
 A sigmond software-defined-radio (SDR) client that receives
 pseudorandom-noise- (PRN-) coded high-frequency (HF)
@@ -28,10 +28,10 @@ operating modes are available:
   presence and recovers Doppler shift without using the PRN
   code.  Suitable for first-light "is the signal getting here?"
   tests.  Records emitted to
-  `/var/lib/hf-gps-tec/<radiod>/codeless/`.
+  `/var/lib/hf-tec/<radiod>/codeless/`.
 - **locked** (default) — full PRN correlator (per-transmitter
   pseudorange + Doppler + amplitude).  Records go to
-  `/var/lib/hf-gps-tec/<radiod>/locked/`.
+  `/var/lib/hf-tec/<radiod>/locked/`.
 
 Mode selection is controlled by the `[mode]` block in the config
 (`auto`, `codeless`, or `locked`); the default `auto` setting
@@ -45,20 +45,20 @@ is wired in (2026-05-29).
 # renders config templates, installs the systemd unit.  Idempotent.
 sudo ./scripts/install.sh
 
-# Edit /etc/hf-gps-tec/hf-gps-tec-config.toml to set station
+# Edit /etc/hf-tec/hf-tec-config.toml to set station
 # identity and the ka9q-radio status hostname.
 
 # Validate the config (JSON output).
-sudo -u hfgpstec hf-gps-tec validate --json
+sudo -u hftec hf-tec validate --json
 
 # Start one instance per ka9q-radio radiod on the host.
-sudo systemctl start hf-gps-tec@<radiod-id>
+sudo systemctl start hf-tec@<radiod-id>
 
 # Watch detections accumulate (codeless mode, default).
-tail -f /var/lib/hf-gps-tec/<radiod-id>/codeless/*.jsonl
+tail -f /var/lib/hf-tec/<radiod-id>/codeless/*.jsonl
 
 # After the PRN spec lands and locked mode kicks in:
-tail -f /var/lib/hf-gps-tec/<radiod-id>/locked/*.jsonl
+tail -f /var/lib/hf-tec/<radiod-id>/locked/*.jsonl
 ```
 
 ## Further reading
@@ -71,7 +71,7 @@ tail -f /var/lib/hf-gps-tec/<radiod-id>/locked/*.jsonl
   methodology with numeric defaults, references back to the
   Hysell papers, and the current spec-gap list.
 - [`CLAUDE.md`](CLAUDE.md) — developer and operator briefing.
-- [`config/hf-gps-tec-config.toml.template`](config/hf-gps-tec-config.toml.template)
+- [`config/hf-tec-config.toml.template`](config/hf-tec-config.toml.template)
   — full configuration schema with inline comments.
 
 ## License

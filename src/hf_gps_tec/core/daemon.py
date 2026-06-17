@@ -67,28 +67,40 @@ class _PipelineWorker:
 
     def _run(self) -> None:
         while not self.stop_event.is_set():
+            pipeline: Optional[FreqPipeline] = None
+            crashed = False
             try:
-                pipeline: FreqPipeline = self.pipeline_factory()  # type: ignore[misc]
+                pipeline = self.pipeline_factory()  # type: ignore[assignment]
                 logger.info("[%s] pipeline running", self.name)
                 self.backoff_s = 2.0  # reset on successful start
                 for frame in pipeline.source.frames():
                     if self.stop_event.is_set():
                         break
                     pipeline.process_frame(frame)
-                pipeline.close()
             except Exception:
+                crashed = True
                 logger.exception("[%s] pipeline crashed", self.name)
-                # Exponential backoff up to 60 s.
-                wait = min(self.backoff_s, 60.0)
-                logger.warning("[%s] restarting in %.1f s", self.name, wait)
-                if self.stop_event.wait(wait):
-                    break
-                self.backoff_s = min(self.backoff_s * 2.0, 60.0)
-            else:
-                # Clean source exhaustion — uncommon for live capture; just
-                # exit the worker loop.
+            finally:
+                # Always release the source (RadiodStream RX thread + sample
+                # queue) before retry/exit, so a crashed-then-restarted
+                # pipeline never orphans its prior RTP subscription.  Before
+                # this, close() ran only on clean exhaustion, leaking one
+                # stream + RX thread per crash-restart.
+                if pipeline is not None:
+                    try:
+                        pipeline.close()
+                    except Exception:
+                        logger.exception("[%s] pipeline close failed", self.name)
+            if not crashed:
+                # Clean source exhaustion — uncommon for live capture.
                 logger.info("[%s] source exhausted; worker exiting", self.name)
                 return
+            # Exponential backoff up to 60 s.
+            wait = min(self.backoff_s, 60.0)
+            logger.warning("[%s] restarting in %.1f s", self.name, wait)
+            if self.stop_event.wait(wait):
+                break
+            self.backoff_s = min(self.backoff_s * 2.0, 60.0)
 
     def stop(self) -> None:
         self.stop_event.set()

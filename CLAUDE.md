@@ -180,10 +180,15 @@ Deferred:
 
 - **§14** — config init/edit wizard via `sigmond.wizard_dispatch`
   (operator hand-edits the TOML for now).
-- **§18 (timing authority)** — capability boolean only;
-  `timing_authority_applied = null` (RTP-default).  Once PRN sync is
-  working, hf-timestd's authority snapshot is the natural way to
-  anchor code epochs absolutely.
+- **§18 (timing authority)** — `core/authority_reader.py` subscribes to
+  hf-timestd's `/run/hf-timestd/authority.json`; the frame anchor is
+  derived from the RTP counter (`rtp_to_wallclock` + the published
+  offset) and every frame label projects off it by sample count
+  (`core/stream.py:_compute_anchor_utc`, METROLOGY §4.5 RTP-reference
+  invariant) — matching codar-sounder.  The inventory
+  `timing_authority_applied` field stays `null` (capability / RTP-default,
+  same as the sibling clients).  Absolute code-epoch alignment for PRN
+  sync is the remaining work on top of this anchor.
 
 ## Production paths
 

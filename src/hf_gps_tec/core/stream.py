@@ -5,8 +5,11 @@ dynamically through ``RadiodControl.ensure_channel`` so radiod does
 not need a static channel fragment — adding a frequency to the
 recorder config is sufficient.  Frames are emitted at the code-period
 boundary (10,000 samples at 100 kS/s = 100 ms by default),
-timestamped with the receive-side anchor (RTP-derived UTC is future
-work; for now the host wall clock is used with a warning).
+timestamped off the GPSDO-clocked RTP counter: the first sample's UTC
+is derived once via ka9q rtp_to_wallclock + the hf-timestd authority
+offset, then every frame's label is pure sample-count projection
+(METROLOGY.md §4.5 RTP-reference invariant).  The host wall clock is
+used only as a loudly-warned fallback when no RTP timing is available.
 
 ka9q-python is the only mandatory runtime dependency for live
 capture; it is lazy-imported so the rest of the package (config,
@@ -26,7 +29,7 @@ import logging
 import queue as _q
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterator, Optional, Protocol
 
 import numpy as np
@@ -76,6 +79,13 @@ class HfGpsTecSource:
     _sample_queue: object = field(default=None, init=False, repr=False)
     _stopped: threading.Event = field(default_factory=threading.Event, init=False, repr=False)
     _anchor_first_rtp: Optional[int] = field(default=None, init=False, repr=False)
+    # RTP-reference timing: the UTC of the first sample, derived ONCE from
+    # rtp_to_wallclock + the hf-timestd authority offset; every frame label
+    # then projects off it by sample count.  _authority_reader is injectable
+    # for tests; defaults to the real /run/hf-timestd/authority.json reader.
+    _authority_reader: object = field(default=None, init=False, repr=False)
+    _anchor_utc: Optional[datetime] = field(default=None, init=False, repr=False)
+    _frame_index: int = field(default=0, init=False, repr=False)
 
     # ---- ka9q lazy import ---------------------------------------------------
 
@@ -177,6 +187,62 @@ class HfGpsTecSource:
             except Exception:
                 pass
 
+    # ---- RTP-reference timing -----------------------------------------------
+
+    def _compute_anchor_utc(self) -> datetime:
+        """UTC of the very first sample delivered, derived from the RTP
+        counter (ka9q rtp_to_wallclock against the captured
+        first_rtp_timestamp + channel_info) plus the hf-timestd authority
+        offset.  This is the §4.5 RTP-reference invariant in concrete form:
+        time is hf-timestd's product; the client consumes it and never
+        re-samples the host clock per frame.  Falls back to wall-clock-now
+        with an explicit warning only if the RTP timestamp was never
+        captured or rtp_to_wallclock returns None."""
+        import time as _time
+        from ka9q.rtp_recorder import rtp_to_wallclock  # type: ignore
+
+        reader = self._authority_reader
+        if reader is None:
+            from hf_gps_tec.core.authority_reader import AuthorityReader
+            reader = self._authority_reader = AuthorityReader()
+        snap = None
+        try:
+            snap = reader.read()
+        except Exception as exc:                # noqa: BLE001
+            logger.warning("authority read failed: %s", exc)
+        offset_sec = snap.offset_seconds if (snap and snap.offset_usable) else 0.0
+
+        # time.time() is only a wrap-disambiguation hint for rtp_to_wallclock
+        # (±period/2 tolerance, hours-scale) — NOT the labeling reference.
+        # The actual label is the RTP-derived value plus the authority offset.
+        utc_sec: Optional[float] = None
+        if self._anchor_first_rtp is not None and self._channel_info is not None:
+            utc_sec = rtp_to_wallclock(
+                self._anchor_first_rtp,
+                self._channel_info,
+                wallclock_hint_sec=_time.time() + offset_sec,
+            )
+        if utc_sec is None:
+            logger.warning(
+                "HfGpsTecSource: frame anchor falling back to wall-clock — "
+                "RTP timing info unavailable (anchor_first_rtp=%r, "
+                "channel_info=%r). Labels tied to host clock until "
+                "hf-timestd authority + RTP become available.",
+                self._anchor_first_rtp, self._channel_info,
+            )
+            return datetime.now(timezone.utc)
+        anchor = datetime.fromtimestamp(utc_sec, tz=timezone.utc) + timedelta(
+            seconds=offset_sec,
+        )
+        logger.info(
+            "HfGpsTecSource: frame anchor %s (rtp=%d, authority=%s, "
+            "offset=%+.6fs) @ %d Hz",
+            anchor.isoformat(), self._anchor_first_rtp,
+            (snap.t_level_active if snap else "unavailable"),
+            offset_sec, self.frequency_hz,
+        )
+        return anchor
+
     # ---- frame iterator -----------------------------------------------------
 
     def frames(self) -> Iterator[IqFrame]:
@@ -204,9 +270,16 @@ class HfGpsTecSource:
                 filled += take
                 idx += take
                 if filled == self.frame_n_samples:
-                    # Frame ready.  Host wall-clock anchor for first-light.
-                    # RTP-derived UTC (via hf-timestd authority) is future work.
-                    ts = datetime.now(tz=timezone.utc)
+                    # Frame ready.  Anchor the first sample's UTC once off the
+                    # RTP counter (+ authority offset), then label every frame
+                    # by pure sample-count projection — never re-sampling the
+                    # host clock per frame (METROLOGY.md §4.5).
+                    if self._anchor_utc is None:
+                        self._anchor_utc = self._compute_anchor_utc()
+                    ts = self._anchor_utc + timedelta(
+                        seconds=(self._frame_index * self.frame_n_samples)
+                        / self.sample_rate_hz,
+                    )
                     yield IqFrame(
                         frequency_hz=self.frequency_hz,
                         sample_rate_hz=self.sample_rate_hz,
@@ -215,4 +288,5 @@ class HfGpsTecSource:
                         rtp_anchor_ns=self._anchor_first_rtp,
                         radiod_id=self.radiod_id,
                     )
+                    self._frame_index += 1
                     filled = 0

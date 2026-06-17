@@ -13,6 +13,13 @@ Restart=on-failure
 RestartSec=15
 TimeoutStopSec=30
 
+# Resilience backstops (parity with codar-sounder / hfdl-recorder): arm the
+# watchdog the daemon already feeds (WATCHDOG=1 every WatchdogSec/2), and cap
+# memory so a runaway buffer can't OOM the host — it gets restarted instead.
+WatchdogSec=180
+MemoryMax=512M
+MemorySwapMax=0
+
 # Logging — daemon process log goes to systemd journal; per-frame data
 # goes to /var/lib/hf-gps-tec/<radiod_id>/.
 StandardOutput=journal

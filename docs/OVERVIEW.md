@@ -57,14 +57,22 @@ instance configured to deliver the relevant HF channels.
 
 ## 2. Where the name comes from
 
-A natural question on first hearing the name is: why "GPS-TEC"
-when the signals are HF, not from a Global Navigation Satellite
-System (GNSS)?
+The name has two parts: **HF**, the band the beacons occupy, and
+**TEC**, the ionospheric observable the client ultimately produces.
+The second is worth a word — `hf-tec` decodes a PRN-coded PSK signal,
+so why call it a *TEC* instrument?  (It was formerly named
+`hf-gps-tec`; the "gps" was dropped because it misled — the client does
+not receive or depend on GPS.  It is named for what it *produces*, by
+analogy with the established satellite technique below.)
 
-Hysell et al. (2018) §2 develops the answer in detail.  For
+The most common way to measure ionospheric TEC is **GPS-TEC**: reading
+the differential delay and phase of Global Navigation Satellite System
+(GNSS) signals as they transit the ionosphere line-of-sight from
+satellite to ground.  Hysell et al. (2018) §2 shows that an HF skywave
+beacon yields the *same* observables along its oblique path.  For
 either signal class — line-of-sight GNSS transit through the
-ionosphere, or oblique HF skywave reflection from it — the
-fundamental observables are the same:
+ionosphere, or oblique HF skywave reflection from it — the fundamental
+observables are the same:
 
 - the pseudorange, which is the propagation time of the signal
   multiplied by the speed of light in vacuum and reflects the
@@ -82,13 +90,13 @@ dependence and depends on the geomagnetic field, electron
 gyrofrequency, and electron-neutral collision frequency, but in
 the small-deviation limit the relationship to TEC is the same.
 
-`hf-tec` is, therefore, a GPS-TEC instrument that samples
-along oblique HF propagation paths rather than along
-near-zenith GNSS paths.  The name reflects what kind of
-ionospheric science observable the client ultimately produces,
-not the modulation it decodes (continuous-phase PSK with a
-complex random-phase PRN code; see §3.2) or the wave-mode it
-operates in (HF skywave).
+`hf-tec` is, therefore, a GPS-TEC-style instrument that samples
+TEC along oblique HF propagation paths rather than along
+near-zenith GNSS paths.  The name reflects the ionospheric
+observable the client ultimately produces (TEC) and the band it
+produces it from (HF) — not the modulation it decodes
+(continuous-phase PSK with a complex random-phase PRN code; see
+§3.2) or the wave-mode it operates in (HF skywave).
 
 ## 3. Transmit architecture
 

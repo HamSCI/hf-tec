@@ -28,6 +28,7 @@ from __future__ import annotations
 import logging
 import queue as _q
 import threading
+import time as _time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Iterator, Optional, Protocol
@@ -36,6 +37,13 @@ import numpy as np
 
 
 logger = logging.getLogger(__name__)
+
+
+class SourceStalled(RuntimeError):
+    """Raised by ``frames()`` when no I/Q has arrived for longer than the
+    configured stall timeout.  Propagates up to the pipeline worker, which
+    closes the source and re-subscribes on its exponential-backoff path —
+    turning an otherwise-silent radiod stall into a self-healing restart."""
 
 
 @dataclass(frozen=True)
@@ -47,6 +55,11 @@ class IqFrame:
     timestamp_utc: datetime
     rtp_anchor_ns: Optional[int] = None
     radiod_id: str = ""
+    # Cumulative samples dropped (queue overflow) before this frame's first
+    # sample.  The timestamp already accounts for the gap, so this is purely
+    # provenance: a change in this value between consecutive frames marks a
+    # discontinuity downstream consumers may wish to flag.
+    dropped_samples_before: int = 0
 
 
 class IqFrameSource(Protocol):
@@ -72,6 +85,11 @@ class HfTecSource:
     client_id: str = "hf-tec"
     radiod_id: str = ""
     preset: str = "iq"
+    # Raise SourceStalled if no samples arrive for this many seconds.  Frames
+    # flow every code period (100 ms) whenever radiod is alive — independent
+    # of whether any beacon is being detected — so a multi-second silence is
+    # a dead stream, not merely a quiet band.  0 disables the watchdog.
+    stall_timeout_s: float = 30.0
 
     _control: object = field(default=None, init=False, repr=False)
     _stream: object = field(default=None, init=False, repr=False)
@@ -86,6 +104,11 @@ class HfTecSource:
     _authority_reader: object = field(default=None, init=False, repr=False)
     _anchor_utc: Optional[datetime] = field(default=None, init=False, repr=False)
     _frame_index: int = field(default=0, init=False, repr=False)
+    # Cumulative samples dropped on queue overflow (RX thread writes, frame
+    # iterator reads).  Folded into the sample-count timestamp projection so a
+    # backlog advances the timeline by the real gap instead of mislabelling
+    # subsequent frames as contiguous.
+    _dropped_samples: int = field(default=0, init=False, repr=False)
 
     # ---- ka9q lazy import ---------------------------------------------------
 
@@ -178,12 +201,17 @@ class HfTecSource:
             arr = np.where(too_large, np.complex64(0), arr)
         try:
             self._sample_queue.put_nowait(arr)
-        except Exception:
+        except _q.Full:
             try:
-                self._sample_queue.get_nowait()
+                dropped = self._sample_queue.get_nowait()
+                self._dropped_samples += int(getattr(dropped, "size", 0))
                 self._sample_queue.put_nowait(arr)
-                logger.warning("sample queue full at %d Hz; dropped oldest",
-                               self.frequency_hz)
+                logger.warning(
+                    "sample queue full at %d Hz; dropped %d samples "
+                    "(cumulative %d) — frame labels advance over the gap",
+                    self.frequency_hz, int(getattr(dropped, "size", 0)),
+                    self._dropped_samples,
+                )
             except Exception:
                 pass
 
@@ -257,12 +285,23 @@ class HfTecSource:
 
         buf = np.empty(self.frame_n_samples, dtype=np.complex64)
         filled = 0
+        last_rx = _time.monotonic()
 
         while not self._stopped.is_set():
             try:
                 chunk = self._sample_queue.get(timeout=1.0)
-            except Exception:
+            except _q.Empty:
+                if (
+                    self.stall_timeout_s > 0
+                    and _time.monotonic() - last_rx > self.stall_timeout_s
+                ):
+                    raise SourceStalled(
+                        f"no I/Q for {self.stall_timeout_s:.0f}s at "
+                        f"{self.frequency_hz} Hz (radiod {self.radiod_id!r} "
+                        f"stalled); forcing re-subscribe"
+                    )
                 continue
+            last_rx = _time.monotonic()
             idx = 0
             while idx < chunk.size:
                 take = min(chunk.size - idx, self.frame_n_samples - filled)
@@ -276,8 +315,14 @@ class HfTecSource:
                     # host clock per frame (METROLOGY.md §4.5).
                     if self._anchor_utc is None:
                         self._anchor_utc = self._compute_anchor_utc()
+                    # Real elapsed samples = contiguously-framed samples plus
+                    # any dropped on overflow.  Dropped chunks are always the
+                    # consumer's next-in-line, so folding the running drop count
+                    # in keeps the label on real (RTP) time instead of letting a
+                    # backlog slide every later frame earlier than it occurred.
+                    dropped = self._dropped_samples
                     ts = self._anchor_utc + timedelta(
-                        seconds=(self._frame_index * self.frame_n_samples)
+                        seconds=(self._frame_index * self.frame_n_samples + dropped)
                         / self.sample_rate_hz,
                     )
                     yield IqFrame(
@@ -287,6 +332,7 @@ class HfTecSource:
                         timestamp_utc=ts,
                         rtp_anchor_ns=self._anchor_first_rtp,
                         radiod_id=self.radiod_id,
+                        dropped_samples_before=dropped,
                     )
                     self._frame_index += 1
                     filled = 0

@@ -177,6 +177,20 @@ def build_validate(cfg: Config, stations: StationDb | None = None) -> dict:
             "message": "no [[frequency]] blocks configured",
         })
     proc = cfg.processing
+    # Degenerate [processing] values would otherwise raise ZeroDivisionError
+    # below (and crash the daemon at startup).  Report them as a fail and skip
+    # the divide-dependent checks so `validate --json` stays well-formed.
+    if proc.chip_microseconds <= 0 or proc.code_chips <= 0:
+        issues.append({
+            "severity": "fail",
+            "instance": cfg.instance.reporter_id or "default",
+            "message": (
+                f"[processing] chip_microseconds ({proc.chip_microseconds}) "
+                f"and code_chips ({proc.code_chips}) must both be > 0"
+            ),
+        })
+        return {"ok": False, "issues": issues}
+
     chip_rate_hz = 1_000_000 // proc.chip_microseconds  # samples per second at 1 sample/chip
     for f in cfg.frequencies:
         if not f.enabled:

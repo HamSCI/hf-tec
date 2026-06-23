@@ -31,6 +31,10 @@ class StationConfig:
 class Ka9qConfig:
     status_address: str = ""
     filter_guard_hz: int = 1500
+    # Seconds of I/Q silence before the source self-restarts (re-subscribes).
+    # Guards against a radiod that stops delivering samples without closing
+    # the stream.  0 disables the watchdog.
+    stall_timeout_s: float = 30.0
 
 
 @dataclass(frozen=True)
@@ -156,6 +160,7 @@ def load_config(
     ka9q = Ka9qConfig(
         status_address=str(ka9q_raw.get("status_address", "")),
         filter_guard_hz=int(ka9q_raw.get("filter_guard_hz", 1500)),
+        stall_timeout_s=float(ka9q_raw.get("stall_timeout_s", 30.0)),
     )
 
     freq_blocks = raw.get("frequency", []) or []

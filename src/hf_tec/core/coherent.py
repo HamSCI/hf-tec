@@ -18,6 +18,12 @@ from typing import Optional
 import numpy as np
 
 
+#: Speed of light in vacuum (m/s), CODATA exact.  Single source of truth for
+#: every range/delay conversion in hf-tec; hf_tec.qa uses the km/s form
+#: (SPEED_OF_LIGHT_M_S / 1e3) so the detector and the QA bin predictor agree.
+SPEED_OF_LIGHT_M_S: float = 2.99792458e8
+
+
 @dataclass
 class CoherentStack:
     """Accumulator for a single (Tx, freq) coherent window."""
@@ -75,11 +81,10 @@ def range_axis_km(n_range_bins: int, chip_microseconds: float) -> np.ndarray:
 
     Two-way: pseudorange = range_bin × chip_us × c / 2 / 1e3 (km).
     """
-    c = 2.998e8
     return (
         np.arange(n_range_bins, dtype=np.float32)
         * (chip_microseconds * 1e-6)
-        * c
+        * SPEED_OF_LIGHT_M_S
         / 2.0
         / 1.0e3
     )

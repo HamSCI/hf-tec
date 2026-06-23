@@ -36,6 +36,13 @@ status_address = ""
 # local radiod can serve it.
 filter_guard_hz = 1500
 
+# Seconds of I/Q silence tolerated before the source self-restarts.  Frames
+# arrive every code period (100 ms) whenever radiod is alive, so a multi-second
+# gap means the stream is dead — the daemon tears the subscription down and
+# re-subscribes (exponential backoff) rather than stalling silently.  Set to 0
+# to disable.
+stall_timeout_s = 30.0
+
 # ---------------------------------------------------------------------------
 # Frequency plan — which Tx frequencies this receiver subscribes to.
 # Each entry opens one ka9q-radio channel.

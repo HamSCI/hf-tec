@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -53,6 +54,13 @@ class OutputSink:
         # under MULTI-INSTANCE-ARCHITECTURE.md §3 — they coincide).
         self.reporter_id = cfg.instance.reporter_id or instance
 
+        # One OutputSink is shared by every per-frequency pipeline thread
+        # (2.9 + 3.4 MHz run in separate worker threads, all writing to the
+        # same JSONL writer and the same SQLite sink).  Serialise writes so
+        # the day-rotation reopen in _JsonlWriter cannot race and so the
+        # SQLite connection is never touched from two threads at once.
+        self._lock = threading.Lock()
+
         self._locked_jsonl: Optional[_JsonlWriter] = None
         self._codeless_jsonl: Optional[_JsonlWriter] = None
         self._locked_sink: Optional[_HamsciSinkWriter] = None
@@ -93,10 +101,11 @@ class OutputSink:
             "processing_version": __version__,
             "contract_version": CONTRACT_VERSION,
         }
-        if self._locked_jsonl is not None:
-            self._locked_jsonl.write(timestamp_utc, record)
-        if self._locked_sink is not None:
-            self._locked_sink.write(record)
+        with self._lock:
+            if self._locked_jsonl is not None:
+                self._locked_jsonl.write(timestamp_utc, record)
+            if self._locked_sink is not None:
+                self._locked_sink.write(record)
 
     def write_codeless_detection(
         self,
@@ -128,20 +137,22 @@ class OutputSink:
             "processing_version": __version__,
             "contract_version": CONTRACT_VERSION,
         }
-        if self._codeless_jsonl is not None:
-            self._codeless_jsonl.write(timestamp_utc, record)
-        if self._codeless_sink is not None:
-            self._codeless_sink.write(record)
+        with self._lock:
+            if self._codeless_jsonl is not None:
+                self._codeless_jsonl.write(timestamp_utc, record)
+            if self._codeless_sink is not None:
+                self._codeless_sink.write(record)
 
     def close(self) -> None:
-        for writer in (
-            self._locked_jsonl,
-            self._codeless_jsonl,
-            self._locked_sink,
-            self._codeless_sink,
-        ):
-            if writer is not None:
-                writer.close()
+        with self._lock:
+            for writer in (
+                self._locked_jsonl,
+                self._codeless_jsonl,
+                self._locked_sink,
+                self._codeless_sink,
+            ):
+                if writer is not None:
+                    writer.close()
 
 
 # ---------------------------------------------------------------------------

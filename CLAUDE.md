@@ -66,7 +66,7 @@ hf-tec inventory --json      # per-instance resource view
 hf-tec validate --json       # config validation
 hf-tec version --json        # version + git sha
 hf-tec status                # health check
-hf-tec daemon --config /etc/hf-tec/hf-tec-config.toml --radiod-id my-rx888
+hf-tec daemon --config /etc/hf-tec/hf-tec-config.toml --instance my-rx888
 ```
 
 ## Architecture

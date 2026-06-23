@@ -111,5 +111,70 @@ class TestRtpDerivedAnchor(unittest.TestCase):
         self.assertEqual(f0.rtp_anchor_ns, 1)
 
 
+class TestDropAccounting(unittest.TestCase):
+    def test_dropped_samples_advance_the_label_over_the_gap(self):
+        _install_fake_ka9q(lambda rtp, ci, wallclock_hint_sec=None: _BASE)
+        sr, n = 100_000, 10_000
+        src = _source(sr, n)
+        src._stream = object()
+        src._sample_queue = queue.Queue()
+        src._anchor_first_rtp = 1
+        src._channel_info = object()
+        src._authority_reader = _FakeReader(_FakeSnap())
+
+        src._sample_queue.put(np.zeros(n, dtype=np.complex64))
+        gen = src.frames()
+        f0 = next(gen)
+        self.assertEqual(f0.dropped_samples_before, 0)
+
+        # Simulate a queue-overflow drop of one whole frame between f0 and f1.
+        src._dropped_samples = n
+        src._sample_queue.put(np.zeros(n, dtype=np.complex64))
+        f1 = next(gen)
+        src._stopped.set()
+
+        # f1 is the 2nd framed block (index 1) PLUS the dropped frame's worth
+        # of real time — i.e. two frame-periods after the anchor, not one.
+        self.assertEqual(f1.dropped_samples_before, n)
+        self.assertAlmostEqual(
+            (f1.timestamp_utc - f0.timestamp_utc).total_seconds(),
+            2 * n / sr,                               # 0.2 s, gap included
+            places=9,
+        )
+
+
+class _EmptyQueue:
+    """A queue whose get() always reports empty (no blocking) — lets the
+    stall watchdog be exercised without waiting on real 1 s get timeouts."""
+
+    def get(self, timeout=None):
+        raise queue.Empty
+
+
+class TestStallWatchdog(unittest.TestCase):
+    def test_frames_raises_when_no_iq_arrives(self):
+        from hf_tec.core.stream import SourceStalled
+
+        src = _source()
+        src._stream = object()                 # skip open()
+        src._sample_queue = _EmptyQueue()
+        src.stall_timeout_s = 0.2              # trip quickly
+        with self.assertRaises(SourceStalled):
+            next(src.frames())
+
+    def test_stall_watchdog_disabled_when_zero(self):
+        import threading
+
+        src = _source()
+        src._stream = object()
+        src._sample_queue = _EmptyQueue()
+        src.stall_timeout_s = 0.0              # disabled
+        gen = src.frames()
+        # With the watchdog off the loop just spins on empties; stop it after
+        # a beat and confirm it ends cleanly without raising SourceStalled.
+        threading.Timer(0.3, src._stopped.set).start()
+        self.assertIsNone(next(gen, None))
+
+
 if __name__ == "__main__":
     unittest.main()

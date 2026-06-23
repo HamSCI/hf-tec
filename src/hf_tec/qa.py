@@ -133,7 +133,11 @@ def range_km_to_bin(range_km: float, chip_microseconds: float) -> int:
     current 10-µs chip that is 1500 m/bin (1.5 km/bin); at the planned
     20-µs chip it would be 3000 m/bin (3.0 km/bin).
     """
-    bin_spacing_km = 2.99792458e5 * (chip_microseconds * 1e-6) / 2.0
+    # Speed of light in km/s — the km/s form of coherent.SPEED_OF_LIGHT_M_S
+    # (2.99792458e8 m/s).  Kept as a literal so qa stays numpy-free, but the
+    # value must match the detector's so expected_bin lines up with range_bin.
+    sol_km_s = 2.99792458e5
+    bin_spacing_km = sol_km_s * (chip_microseconds * 1e-6) / 2.0
     return int(range_km / bin_spacing_km)
 
 

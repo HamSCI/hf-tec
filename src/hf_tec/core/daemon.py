@@ -132,6 +132,20 @@ class HfTecRecorder:
         if self.stations is None:
             self.stations = load_stations()
 
+        # systemd always passes --instance %i, but a manual `hf-tec daemon`
+        # may not.  A None/empty instance would otherwise blow up deep inside
+        # OutputSink's path construction with an opaque TypeError; fall back to
+        # the configured reporter_id, then the radiod_id, so the spool dir and
+        # reporter_id stamp are always well-defined.
+        if not self.instance:
+            self.instance = self.cfg.instance.reporter_id or self.radiod_id
+        if not self.instance:
+            logger.error(
+                "no instance name: pass --instance, or set [instance] "
+                "reporter_id or [ka9q] status_address in the config"
+            )
+            return 2
+
         rx_id = self.cfg.station.station_id
         sink = OutputSink(self.cfg, instance=self.instance)
 
@@ -188,6 +202,7 @@ class HfTecRecorder:
                 freq_cfg.sample_rate_hz * self.cfg.processing.code_period_ms // 1000
             ),
             radiod_id=self.radiod_id,
+            stall_timeout_s=self.cfg.ka9q.stall_timeout_s,
         )
         if self.cfg.resolved_mode() == "codeless":
             return CodelessPipeline(

@@ -1,6 +1,6 @@
 [Unit]
 Description=HF PRN beacon recorder for ka9q-radio (%i)
-Documentation=https://github.com/mijahauan/hf-tec
+Documentation=https://github.com/HamSCI/hf-tec
 After=network-online.target radiod@%i.service
 Wants=network-online.target
 

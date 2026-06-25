@@ -1,6 +1,6 @@
 [Unit]
 Description=HF PRN beacon QA snapshot timer for %i
-Documentation=https://github.com/mijahauan/hf-tec
+Documentation=https://github.com/HamSCI/hf-tec
 # Bound to the recorder so disabling hf-tec@%i also halts
 # snapshots for that instance (no orphan timers).
 PartOf=hf-tec@%i.service

@@ -1,6 +1,6 @@
 [Unit]
 Description=HF PRN beacon QA snapshot for %i
-Documentation=https://github.com/mijahauan/hf-tec
+Documentation=https://github.com/HamSCI/hf-tec
 # Don't run snapshots before the recorder is up; if it goes down,
 # follow it (PartOf) so we don't keep snapshotting against a stalled
 # daemon.

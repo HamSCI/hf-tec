@@ -46,7 +46,7 @@ previously-open gaps are closed.
 ## Authors
 
 - Michael Hauan (AC0G, GitHub: mijahauan)
-- Repo: https://github.com/mijahauan/hf-tec
+- Repo: https://github.com/HamSCI/hf-tec
 
 ## Quick reference
 

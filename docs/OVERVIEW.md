@@ -406,7 +406,7 @@ recorder clients (`psk-recorder`, `wspr-recorder`,
   a per-client table;
 - contract surface (`inventory --json`, `validate --json`,
   `version --json`) at the sigmond client-contract version
-  0.7 specification.
+  0.8 specification.
 
 ## 5. Data products
 

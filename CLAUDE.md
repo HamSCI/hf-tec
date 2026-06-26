@@ -101,7 +101,7 @@ Output (core/output.py)
 src/hf_tec/
   cli.py              # argparse entry; subcommands listed above
   config.py           # TOML loader, per-instance resolution
-  contract.py         # inventory/validate JSON builders (contract v0.7)
+  contract.py         # inventory/validate JSON builders (contract v0.8)
   stations.py         # known Tx/Rx site database (loaded from
                       # /etc/hf-tec/stations.toml)
   version.py          # GIT_INFO dict for provenance
@@ -154,10 +154,10 @@ docs/
   per-Tx generator polynomial + seed, the correlator can be made
   real with no other architectural change.
 
-## Client contract (v0.7)
+## Client contract (v0.8)
 
 `src/hf_tec/contract.py` declares
-`CONTRACT_VERSION = "0.7"`.  Authoritative spec:
+`CONTRACT_VERSION = "0.8"`.  Authoritative spec:
 `/opt/git/sigmond/sigmond/docs/CLIENT-CONTRACT.md`.
 
 Sections implemented in scaffolding:

@@ -1,7 +1,7 @@
 """Output sinks: daily-rotated JSONL + additive HamSCI SQLite sink.
 
 The JSONL writer is the canonical L1 artefact.  The HamSCI sink writer
-is additive (CONTRACT v0.6 §17) — silent no-op when sigmond's
+is additive (CONTRACT v0.8 §17) — silent no-op when sigmond's
 SQLite sink at /var/lib/sigmond/sink.db is unwritable.
 
 Future: an opt-in `.out.mod` text writer for direct Hysell `focus.c`
@@ -206,7 +206,7 @@ class _JsonlWriter:
 
 
 # ---------------------------------------------------------------------------
-# HamSCI sink writer (CONTRACT v0.6 §17)
+# HamSCI sink writer (CONTRACT v0.8 §17)
 # ---------------------------------------------------------------------------
 
 

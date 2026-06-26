@@ -1,6 +1,6 @@
 # hf-tec deploy manifest — declares how this client gets from
 # repo source to its production location. Conforms to the HamSCI client
-# contract v0.7 (sigmond/docs/CLIENT-CONTRACT.md).
+# contract v0.8 (sigmond/docs/CLIENT-CONTRACT.md).
 
 [package]
 name             = "hf-tec"

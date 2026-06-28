@@ -253,8 +253,9 @@ seeds) · the shared SQLite sink + downstream science consumers (Hysell inversio
   `frequencies_hz` + `ka9q_channels`, `transmitters_enabled`, `mode_configured/
   mode_resolved`. Full field semantics: contract §3/§16/§17.
 - `TEC-I-002` `[DOC]` 🟡 **Timing-authority consumer (capability-only):** reads
-  hf-timestd's §18 authority via `core/authority_reader.py`; the frame anchor is
-  derived from the RTP counter + published offset (`stream.py:_compute_anchor_utc`,
+  hf-timestd's §18 authority via the shared `hamsci_dsp.timing.AuthorityReader`;
+  the frame anchor is derived from the RTP counter + published offset via the
+  shared `hamsci_dsp.timing.acquire_anchor_utc` helper (`stream.py:_compute_anchor_utc`,
   METROLOGY §4.5 RTP-reference invariant), never the host clock. But `inventory`
   reports `uses_timing_calibration=false`, `timing_authority_applied=null`:
   the authority is **not yet consumed for absolute code-epoch PRN alignment**.

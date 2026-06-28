@@ -25,7 +25,8 @@ classifiers = [
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
-    "ka9q-python>=3.14.0",
+    "ka9q-python>=3.17.0",
+    "hamsci-dsp>=0.3.0",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,7 @@ hf-tec = "hf_tec.cli:main"
 # Sibling editable installs — sigmond fleet upgrade pattern.
 [tool.uv.sources]
 ka9q-python = { path = "../ka9q-python", editable = true }
+hamsci-dsp = { path = "../hamsci-dsp", editable = true }
 
 [tool.setuptools.packages.find]
 where = ["src"]

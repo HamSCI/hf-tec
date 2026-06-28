@@ -6,8 +6,9 @@ not need a static channel fragment — adding a frequency to the
 recorder config is sufficient.  Frames are emitted at the code-period
 boundary (10,000 samples at 100 kS/s = 100 ms by default),
 timestamped off the GPSDO-clocked RTP counter: the first sample's UTC
-is derived once via ka9q rtp_to_wallclock + the hf-timestd authority
-offset, then every frame's label is pure sample-count projection
+is derived once via the shared hamsci_dsp.timing anchor helper
+(ka9q rtp_to_utc + the hf-timestd authority offset), then every
+frame's label is pure sample-count projection
 (METROLOGY.md §4.5 RTP-reference invariant).  The host wall clock is
 used only as a loudly-warned fallback when no RTP timing is available.
 
@@ -97,9 +98,10 @@ class HfTecSource:
     _sample_queue: object = field(default=None, init=False, repr=False)
     _stopped: threading.Event = field(default_factory=threading.Event, init=False, repr=False)
     _anchor_first_rtp: Optional[int] = field(default=None, init=False, repr=False)
-    # RTP-reference timing: the UTC of the first sample, derived ONCE from
-    # rtp_to_wallclock + the hf-timestd authority offset; every frame label
-    # then projects off it by sample count.  _authority_reader is injectable
+    # RTP-reference timing: the UTC of the first sample, derived ONCE via
+    # the shared hamsci_dsp.timing helper (ka9q rtp_to_utc + the hf-timestd
+    # authority offset); every frame label then projects off it by sample
+    # count.  _authority_reader is injectable
     # for tests; defaults to the real /run/hf-timestd/authority.json reader.
     _authority_reader: object = field(default=None, init=False, repr=False)
     _anchor_utc: Optional[datetime] = field(default=None, init=False, repr=False)
@@ -219,57 +221,39 @@ class HfTecSource:
 
     def _compute_anchor_utc(self) -> datetime:
         """UTC of the very first sample delivered, derived from the RTP
-        counter (ka9q rtp_to_wallclock against the captured
+        counter (ka9q rtp_to_utc against the captured
         first_rtp_timestamp + channel_info) plus the hf-timestd authority
         offset.  This is the §4.5 RTP-reference invariant in concrete form:
         time is hf-timestd's product; the client consumes it and never
         re-samples the host clock per frame.  Falls back to wall-clock-now
         with an explicit warning only if the RTP timestamp was never
-        captured or rtp_to_wallclock returns None."""
-        import time as _time
-        from ka9q.rtp_recorder import rtp_to_wallclock  # type: ignore
+        captured or rtp_to_utc returns None.
 
-        reader = self._authority_reader
-        if reader is None:
-            from hf_tec.core.authority_reader import AuthorityReader
-            reader = self._authority_reader = AuthorityReader()
-        snap = None
-        try:
-            snap = reader.read()
-        except Exception as exc:                # noqa: BLE001
-            logger.warning("authority read failed: %s", exc)
-        offset_sec = snap.offset_seconds if (snap and snap.offset_usable) else 0.0
+        The anchor acquisition itself is delegated to the shared
+        ``hamsci_dsp.timing.acquire_anchor_utc`` helper (sigmond fleet
+        timing primitive); only the per-frame projection stays local."""
+        from ka9q import rtp_to_utc  # type: ignore
+        from hamsci_dsp.timing import acquire_anchor_utc, AuthorityReader
 
-        # time.time() is only a wrap-disambiguation hint for rtp_to_wallclock
-        # (±period/2 tolerance, hours-scale) — NOT the labeling reference.
-        # The actual label is the RTP-derived value plus the authority offset.
-        utc_sec: Optional[float] = None
-        if self._anchor_first_rtp is not None and self._channel_info is not None:
-            utc_sec = rtp_to_wallclock(
-                self._anchor_first_rtp,
-                self._channel_info,
-                wallclock_hint_sec=_time.time() + offset_sec,
-            )
-        if utc_sec is None:
-            logger.warning(
-                "HfTecSource: frame anchor falling back to wall-clock — "
-                "RTP timing info unavailable (anchor_first_rtp=%r, "
-                "channel_info=%r). Labels tied to host clock until "
-                "hf-timestd authority + RTP become available.",
-                self._anchor_first_rtp, self._channel_info,
-            )
-            return datetime.now(timezone.utc)
-        anchor = datetime.fromtimestamp(utc_sec, tz=timezone.utc) + timedelta(
-            seconds=offset_sec,
+        if self._authority_reader is None:
+            self._authority_reader = AuthorityReader()
+
+        a = acquire_anchor_utc(
+            first_rtp=self._anchor_first_rtp,
+            channel_info=self._channel_info,
+            rtp_to_utc=rtp_to_utc,
+            authority_reader=self._authority_reader,
+            samples_behind=0,
+            sample_rate=int(self.sample_rate_hz),
         )
         logger.info(
-            "HfTecSource: frame anchor %s (rtp=%d, authority=%s, "
+            "HfTecSource: frame anchor %s (rtp=%r, source=%s, authority=%s, "
             "offset=%+.6fs) @ %d Hz",
-            anchor.isoformat(), self._anchor_first_rtp,
-            (snap.t_level_active if snap else "unavailable"),
-            offset_sec, self.frequency_hz,
+            a.datetime.isoformat(), self._anchor_first_rtp, a.source,
+            (a.snapshot.t_level_active if a.snapshot else "unavailable"),
+            a.offset_seconds, self.frequency_hz,
         )
-        return anchor
+        return a.datetime
 
     # ---- frame iterator -----------------------------------------------------
 

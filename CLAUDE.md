@@ -180,10 +180,11 @@ Deferred:
 
 - **§14** — config init/edit wizard via `sigmond.wizard_dispatch`
   (operator hand-edits the TOML for now).
-- **§18 (timing authority)** — `core/authority_reader.py` subscribes to
-  hf-timestd's `/run/hf-timestd/authority.json`; the frame anchor is
-  derived from the RTP counter (`rtp_to_wallclock` + the published
-  offset) and every frame label projects off it by sample count
+- **§18 (timing authority)** — the shared `hamsci_dsp.timing.AuthorityReader`
+  subscribes to hf-timestd's `/run/hf-timestd/authority.json`; the frame
+  anchor is derived from the RTP counter via the shared
+  `hamsci_dsp.timing.acquire_anchor_utc` helper (`ka9q.rtp_to_utc` + the
+  published offset) and every frame label projects off it by sample count
   (`core/stream.py:_compute_anchor_utc`, METROLOGY §4.5 RTP-reference
   invariant) — matching codar-sounder.  The inventory
   `timing_authority_applied` field stays `null` (capability / RTP-default,

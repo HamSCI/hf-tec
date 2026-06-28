@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """hf-tec stream timing: the frame anchor is derived from the RTP
-counter (rtp_to_wallclock + hf-timestd authority offset), NOT the host
-wall clock, and each frame's label projects off that anchor by sample
-count — the DASI2 RTP-reference invariant (METROLOGY.md §4.5)."""
+counter (ka9q.rtp_to_utc + hf-timestd authority offset, via the shared
+hamsci_dsp.timing.acquire_anchor_utc helper), NOT the host wall clock,
+and each frame's label projects off that anchor by sample count — the
+DASI2 RTP-reference invariant (METROLOGY.md §4.5)."""
 
 import queue
 import sys
@@ -14,13 +15,14 @@ import numpy as np
 
 from hf_tec.core.stream import HfTecSource
 
-_BASE = 1_750_000_000.0       # arbitrary epoch seconds returned by rtp_to_wallclock
+_BASE = 1_750_000_000.0       # arbitrary epoch seconds returned by rtp_to_utc
 _OFFSET_S = 4250 / 1e9        # hf-timestd authority offset (ns -> s)
 
 
 class _FakeSnap:
     offset_usable = True
     offset_seconds = _OFFSET_S
+    rtp_to_utc_offset_ns = 4250
     t_level_active = "T6"
 
 
@@ -32,11 +34,13 @@ class _FakeReader:
         return self._snap
 
 
-def _install_fake_ka9q(rtp_to_wallclock):
+def _install_fake_ka9q(rtp_to_utc):
     ka9q = sys.modules.get("ka9q") or types.ModuleType("ka9q")
+    ka9q.rtp_to_utc = rtp_to_utc
     sys.modules["ka9q"] = ka9q
+    # rtp_to_wallclock is the deprecated alias kept on the rtp_recorder module.
     rr = types.ModuleType("ka9q.rtp_recorder")
-    rr.rtp_to_wallclock = rtp_to_wallclock
+    rr.rtp_to_wallclock = rtp_to_utc
     sys.modules["ka9q.rtp_recorder"] = rr
 
 

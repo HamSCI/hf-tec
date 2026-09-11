@@ -36,6 +36,8 @@ from typing import Iterator, Optional, Protocol
 
 import numpy as np
 
+from hamsci_dsp.timing import AnchorUTC
+
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +107,9 @@ class HfTecSource:
     # for tests; defaults to the real /run/hf-timestd/authority.json reader.
     _authority_reader: object = field(default=None, init=False, repr=False)
     _anchor_utc: Optional[datetime] = field(default=None, init=False, repr=False)
+    # The anchor itself.  Its snapshot is what the §3 timing_authority_applied
+    # report describes: the registration the labels ride, not a fresh read.
+    _anchor: Optional[AnchorUTC] = field(default=None, init=False, repr=False)
     _frame_index: int = field(default=0, init=False, repr=False)
     # Cumulative samples dropped on queue overflow (RX thread writes, frame
     # iterator reads).  Folded into the sample-count timestamp projection so a
@@ -183,6 +188,13 @@ class HfTecSource:
             logger.exception("ka9q stream stop failed")
         self._stream = None
 
+    @property
+    def anchor(self) -> Optional[AnchorUTC]:
+        """The anchor every frame label projects from (None until the first
+        frame).  Its ``timing_authority_applied()`` gives this channel's
+        honest §3 report."""
+        return self._anchor
+
     # ---- ka9q callback ------------------------------------------------------
 
     def _on_samples(self, samples, quality) -> None:
@@ -253,6 +265,7 @@ class HfTecSource:
             (a.snapshot.t_level_active if a.snapshot else "unavailable"),
             a.offset_seconds, self.frequency_hz,
         )
+        self._anchor = a
         return a.datetime
 
     # ---- frame iterator -----------------------------------------------------

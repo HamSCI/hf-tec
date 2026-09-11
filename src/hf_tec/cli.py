@@ -120,7 +120,7 @@ def _handle_inventory(args: argparse.Namespace) -> int:
         # "not installed" for a client that very much is.
         return 0
     stations = load_stations(Path(args.stations) if args.stations else None)
-    print(json.dumps(build_inventory(cfg, stations), indent=2))
+    print(json.dumps(build_inventory(cfg, stations, instance=args.instance), indent=2))
     return 0
 
 

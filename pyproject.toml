@@ -26,7 +26,7 @@ dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
     "ka9q-python>=3.18.0",
-    "hamsci-dsp>=0.3.0",
+    "hamsci-dsp>=0.8.0",
 ]
 
 [project.optional-dependencies]

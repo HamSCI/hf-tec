@@ -180,5 +180,50 @@ class TestStallWatchdog(unittest.TestCase):
         self.assertIsNone(next(gen, None))
 
 
+class TestAnchorKeptForTheReport(unittest.TestCase):
+    """The daemon reports what its labels ride (CLIENT-CONTRACT §18.5), so
+    the source keeps the AnchorUTC it pinned, not only the datetime."""
+
+    def test_source_keeps_the_anchor_it_pinned(self):
+        _install_fake_ka9q(lambda rtp, ci, wallclock_hint_sec=None: _BASE)
+        src = _source()
+        self.assertIsNone(src.anchor)
+        src._anchor_first_rtp = 123456
+        src._channel_info = object()
+        src._authority_reader = _FakeReader(_FakeSnap())
+        dt = src._compute_anchor_utc()
+        self.assertEqual(src.anchor.datetime, dt)
+        self.assertEqual(src.anchor.offset_ns, 4250)
+        self.assertEqual(src.anchor.source, "rtp_to_utc+authority")
+        block = src.anchor.timing_authority_applied(client_radiod="rx")
+        self.assertEqual(block["tier"], "T6")
+
+    def test_anchor_without_authority_reports_null(self):
+        _install_fake_ka9q(lambda rtp, ci, wallclock_hint_sec=None: _BASE)
+        src = _source()
+        src._anchor_first_rtp = 1
+        src._channel_info = object()
+        src._authority_reader = _FakeReader(None)
+        src._compute_anchor_utc()
+        self.assertIsNone(src.anchor.offset_ns)
+        self.assertIsNone(src.anchor.timing_authority_applied(client_radiod="rx"))
+
+    def test_frames_pin_the_anchor_once(self):
+        _install_fake_ka9q(lambda rtp, ci, wallclock_hint_sec=None: _BASE)
+        sr, n = 100_000, 10_000
+        src = _source(sr, n)
+        src._stream = object()
+        src._sample_queue = queue.Queue()
+        src._anchor_first_rtp = 1
+        src._channel_info = object()
+        src._authority_reader = _FakeReader(_FakeSnap())
+        src._sample_queue.put(np.zeros(n, dtype=np.complex64))
+        gen = src.frames()
+        self.assertIsNone(src.anchor)
+        f0 = next(gen)
+        src._stopped.set()
+        self.assertEqual(src.anchor.datetime, f0.timestamp_utc)
+
+
 if __name__ == "__main__":
     unittest.main()

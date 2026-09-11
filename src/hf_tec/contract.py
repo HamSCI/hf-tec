@@ -8,7 +8,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from hamsci_dsp.timing import read_applied_state
+
 from .config import Config
+from .core.applied_state import DEFAULT_DATA_ROOT, applied_state_path, instance_name
 from .stations import StationDb, load_stations
 from .version import GIT_INFO
 from . import __version__
@@ -22,14 +25,23 @@ CONTRACT_VERSION = "0.8"
 # ---------------------------------------------------------------------------
 
 
-def build_inventory(cfg: Config, stations: StationDb | None = None) -> dict:
+def build_inventory(
+    cfg: Config,
+    stations: StationDb | None = None,
+    *,
+    instance: str | None = None,
+    data_root: Path | None = None,
+) -> dict:
+    """``instance`` is systemd's ``%i`` when the CLI received ``--instance``;
+    ``data_root`` overrides /var/lib/hf-tec (tests)."""
     if stations is None:
         stations = load_stations()
 
     issues: list[dict] = _inventory_issues(cfg, stations)
 
     enabled_freqs = [int(f.center_hz) for f in cfg.frequencies if f.enabled]
-    instance = cfg.instance.reporter_id or "default"
+    # The same rule the daemon applies, so both name one directory.
+    instance = instance_name(cfg, instance) or "default"
     resolved_mode = cfg.resolved_mode()
 
     inv_instance = {
@@ -42,9 +54,20 @@ def build_inventory(cfg: Config, stations: StationDb | None = None) -> dict:
         "ka9q_channels": len(enabled_freqs),
         "data_destination": None,
         "data_sinks": _data_sinks(cfg, resolved_mode),
-        "uses_timing_calibration": False,
+        # §3: capability, not the active mode.  Every source anchors through
+        # hamsci_dsp.timing.acquire_anchor_utc, which applies hf-timestd's
+        # published RTP->UTC offset whenever authority.json is fresh.  The
+        # daemon subscribes whenever it can.
+        "uses_timing_calibration": True,
         "provides_timing_calibration": False,
-        "timing_authority_applied": None,
+        # §18.5 (amendment 2026-09-04): the field describes the LABELS the
+        # running daemon writes.  The daemon leaves the block it applies at
+        # <data_root>/<instance>/timing-authority.json once a minute
+        # (core/applied_state.py).  A stale or absent file reads as null.
+        # Nothing running means nothing applied.
+        "timing_authority_applied": read_applied_state(
+            applied_state_path(data_root or DEFAULT_DATA_ROOT, instance),
+        ),
         "radiod_status_dns": cfg.ka9q.status_address,
         "data_path": {"kind": "radiod-ka9q-python", "radiod_id": None},
         "control_socket": "/run/hf-tec/control.sock",

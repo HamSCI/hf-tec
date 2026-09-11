@@ -27,7 +27,9 @@ from .detect_codeless import CodelessDetection
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_DATA_ROOT = Path("/var/lib/hf-tec")
+# Defined in applied_state.py (contract.py needs it and cannot import this
+# module without a cycle); re-exported here for existing importers.
+from .applied_state import DEFAULT_DATA_ROOT  # noqa: E402,F401
 
 
 class OutputSink:

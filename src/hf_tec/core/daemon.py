@@ -14,17 +14,23 @@ import signal
 import threading
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 from ..config import Config, FrequencyConfig
 from ..stations import StationDb, load_stations
+from .applied_state import applied_state_for, applied_state_path, instance_name
 from .codeless_pipeline import CodelessPipeline
-from .output import OutputSink
+from .output import DEFAULT_DATA_ROOT, OutputSink
 from .pipeline import FreqPipeline
 from .stream import HfTecSource
 
 
 logger = logging.getLogger(__name__)
+
+# How often the daemon refreshes its applied-state file.  read_applied_state
+# treats a file older than 300 s as "nothing running".
+APPLIED_STATE_PERIOD_S = 60.0
 
 
 # ---------------------------------------------------------------------------
@@ -60,6 +66,9 @@ class _PipelineWorker:
     stop_event: threading.Event = field(default_factory=threading.Event)
     thread: Optional[threading.Thread] = None
     backoff_s: float = 2.0
+    # The pipeline now running, None while the worker waits out a backoff.
+    # The daemon reads ``pipeline.source.anchor`` from it for the §3 report.
+    pipeline: Optional[object] = None
 
     def start(self) -> None:
         self.thread = threading.Thread(target=self._run, name=self.name, daemon=True)
@@ -71,6 +80,7 @@ class _PipelineWorker:
             crashed = False
             try:
                 pipeline = self.pipeline_factory()  # type: ignore[assignment]
+                self.pipeline = pipeline
                 logger.info("[%s] pipeline running", self.name)
                 self.backoff_s = 2.0  # reset on successful start
                 for frame in pipeline.source.frames():
@@ -86,6 +96,7 @@ class _PipelineWorker:
                 # pipeline never orphans its prior RTP subscription.  Before
                 # this, close() ran only on clean exhaustion, leaking one
                 # stream + RX thread per crash-restart.
+                self.pipeline = None
                 if pipeline is not None:
                     try:
                         pipeline.close()
@@ -118,8 +129,10 @@ class HfTecRecorder:
     cfg: Config
     instance: str             # = reporter_id ≡ systemd @<i>; also output-path dir
     stations: Optional[StationDb] = None
+    data_root: Optional[Path] = None   # None -> DEFAULT_DATA_ROOT
     _workers: list[_PipelineWorker] = field(default_factory=list, init=False)
     _stop: threading.Event = field(default_factory=threading.Event, init=False)
+    _applied_state_written_at: Optional[float] = field(default=None, init=False)
 
     @property
     def radiod_id(self) -> str:
@@ -134,11 +147,10 @@ class HfTecRecorder:
 
         # systemd always passes --instance %i, but a manual `hf-tec daemon`
         # may not.  A None/empty instance would otherwise blow up deep inside
-        # OutputSink's path construction with an opaque TypeError; fall back to
-        # the configured reporter_id, then the radiod_id, so the spool dir and
-        # reporter_id stamp are always well-defined.
-        if not self.instance:
-            self.instance = self.cfg.instance.reporter_id or self.radiod_id
+        # OutputSink's path construction with an opaque TypeError.  The
+        # fallback rule lives in applied_state.instance_name so inventory
+        # (another process) resolves the same directory.
+        self._resolve_instance()
         if not self.instance:
             logger.error(
                 "no instance name: pass --instance, or set [instance] "
@@ -147,7 +159,7 @@ class HfTecRecorder:
             return 2
 
         rx_id = self.cfg.station.station_id
-        sink = OutputSink(self.cfg, instance=self.instance)
+        sink = OutputSink(self.cfg, instance=self.instance, data_root=self.data_root)
 
         # One worker per enabled frequency.
         enabled = [f for f in self.cfg.frequencies if f.enabled]
@@ -182,11 +194,45 @@ class HfTecRecorder:
 
         try:
             while not self._stop.is_set():
+                self._maybe_write_applied_state()
                 self._stop.wait(timeout=watchdog_s / 2)
                 _sd_notify("WATCHDOG=1")
         finally:
             self._shutdown(sink)
         return 0
+
+    # ---- §3 timing_authority_applied report ----------------------------------
+
+    def _resolve_instance(self) -> None:
+        if not self.instance:
+            self.instance = instance_name(self.cfg) or ""
+
+    def _applied_state_path(self) -> Path:
+        return applied_state_path(self.data_root or DEFAULT_DATA_ROOT, self.instance)
+
+    def _maybe_write_applied_state(self, now: Optional[float] = None) -> None:
+        """Write at most once per minute.  The heartbeat loop wakes every
+        watchdog_s/2 seconds, which can run well under a minute."""
+        now = time.monotonic() if now is None else now
+        last = self._applied_state_written_at
+        if last is not None and now - last < APPLIED_STATE_PERIOD_S:
+            return
+        self._applied_state_written_at = now
+        self._write_applied_state()
+
+    def _write_applied_state(self) -> None:
+        """Leave the §3 ``timing_authority_applied`` block at
+        ``<data_root>/<instance>/timing-authority.json`` for ``inventory
+        --json`` (another process) to report.  See core/applied_state.py.
+        Best-effort: the report must never take the daemon down."""
+        from hamsci_dsp.timing import write_applied_state
+        try:
+            write_applied_state(
+                self._applied_state_path(),
+                applied_state_for(self._workers, client_radiod=self.radiod_id),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("applied-state write failed: %s", exc)
 
     def _build_pipeline(
         self, freq_cfg: FrequencyConfig, sink: OutputSink, rx_id: str

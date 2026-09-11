@@ -175,21 +175,24 @@ Sections implemented in scaffolding:
   PRN-stub warning surfaced explicitly).
 - **§17** — hamsci sink writer (`hf_tec.spots`) alongside canonical
   JSONL.
+- **§18 (timing authority)** — every source anchors through
+  `hamsci_dsp.timing.acquire_anchor_utc` (`core/stream.py:_compute_anchor_utc`).
+  That helper maps the first RTP timestamp with `ka9q.rtp_to_utc` and adds
+  hf-timestd's published RTP→UTC offset whenever
+  `/run/hf-timestd/authority.json` reads fresh.  Every frame label then
+  projects off that anchor by sample count (METROLOGY §4.5 RTP-reference
+  invariant), so the labels ride the authority.  `inventory` reports
+  `uses_timing_calibration = true` and reads `timing_authority_applied` from
+  the block the running daemon leaves at
+  `/var/lib/hf-tec/<instance>/timing-authority.json` once a minute
+  (`core/applied_state.py`).  A stale or absent file reads as null.  Only
+  the absolute code-epoch PRN alignment on top of this anchor remains open
+  (`TEC-F-092`).
 
 Deferred:
 
 - **§14** — config init/edit wizard via `sigmond.wizard_dispatch`
   (operator hand-edits the TOML for now).
-- **§18 (timing authority)** — the shared `hamsci_dsp.timing.AuthorityReader`
-  subscribes to hf-timestd's `/run/hf-timestd/authority.json`; the frame
-  anchor is derived from the RTP counter via the shared
-  `hamsci_dsp.timing.acquire_anchor_utc` helper (`ka9q.rtp_to_utc` + the
-  published offset) and every frame label projects off it by sample count
-  (`core/stream.py:_compute_anchor_utc`, METROLOGY §4.5 RTP-reference
-  invariant) — matching codar-sounder.  The inventory
-  `timing_authority_applied` field stays `null` (capability / RTP-default,
-  same as the sibling clients).  Absolute code-epoch alignment for PRN
-  sync is the remaining work on top of this anchor.
 
 ## Production paths
 

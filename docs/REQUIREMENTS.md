@@ -252,15 +252,17 @@ seeds) · the shared SQLite sink + downstream science consumers (Hysell inversio
   `data_sinks=[file, sqlite]` (table per §8.2), `control_socket=/run/hf-tec/control.sock`,
   `frequencies_hz` + `ka9q_channels`, `transmitters_enabled`, `mode_configured/
   mode_resolved`. Full field semantics: contract §3/§16/§17.
-- `TEC-I-002` `[DOC]` 🟡 **Timing-authority consumer (capability-only):** reads
-  hf-timestd's §18 authority via the shared `hamsci_dsp.timing.AuthorityReader`;
-  the frame anchor is derived from the RTP counter + published offset via the
-  shared `hamsci_dsp.timing.acquire_anchor_utc` helper (`stream.py:_compute_anchor_utc`,
-  METROLOGY §4.5 RTP-reference invariant), never the host clock. But `inventory`
-  reports `uses_timing_calibration=false`, `timing_authority_applied=null`:
-  the authority is **not yet consumed for absolute code-epoch PRN alignment**.
-  Full §18 consumption is Phase 2 (`TEC-F-092`). Subscriber obligations are
-  defined by the contract, not here.
+- `TEC-I-002` `[CODE]` ✅ **Timing-authority subscriber (§18):** every source
+  anchors through the shared `hamsci_dsp.timing.acquire_anchor_utc` helper
+  (`stream.py:_compute_anchor_utc`), which applies hf-timestd's published
+  RTP→UTC offset to the frame labels whenever `authority.json` reads fresh
+  (METROLOGY §4.5 RTP-reference invariant; the host clock never labels a
+  frame).  `inventory` reports `uses_timing_calibration=true` and
+  `timing_authority_applied` from the block the running daemon writes once a
+  minute (`core/applied_state.py`), per the §18.5 amendment of 2026-09-04: the
+  field describes the labels.  A stale file reads as null.  Absolute code-epoch
+  PRN alignment stays open under `TEC-F-092`.  The contract, not this document,
+  defines subscriber obligations.
 - `TEC-I-003` `[DOC]` 🟡 **§14 wizard deferred** — `deploy.toml` leaves
   `[contract.config]` commented; init/edit is operator hand-edit (`TEC-F-052`).
 
@@ -316,9 +318,14 @@ optional.
 - `TEC-F-091` `[NEW]` 🟡 **No real-network detection yet:** locked mode is verified
   on synthetic signals only; no live Alaska/Cornell beacon has been caught.
   Gates any geophysical claim. *(candidate #18 hf-tec issue.)*
-- `TEC-F-092` `[NEW]` ⬜ **Timing authority read-but-not-consumed:** §18 is RTP-
-  anchored but not applied to absolute code-epoch PRN alignment
-  (`uses_timing_calibration=false`). Phase 2 must close this. *(#18 hf-tec Phase 2.)*
+- `TEC-F-092` `[NEW]` 🟡 **Absolute code-epoch PRN alignment open:** the
+  label-application half closed on 2026-09-11.  `acquire_anchor_utc` applies
+  the §18 offset to every frame label, and `inventory` reports it
+  (`uses_timing_calibration=true`, `timing_authority_applied` from the daemon's
+  applied-state file).  What remains: the correlator does not yet align its
+  code epoch to absolute UTC from that anchor, so per-Tx pseudorange still
+  lacks an absolute time origin.  Phase 2 must close that half. *(#18 hf-tec
+  Phase 2.)*
 - `TEC-F-093` `[NEW]` ⬜ **No Cornell Tx seed:** CORNELL has no `prn_seed`; the
   pipeline skips it with a warning. Assign when Hysell publishes it and the site
   comes on-air. *(#18 hf-tec Phase 2 — Cornell Tx seed.)*

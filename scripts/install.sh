@@ -21,6 +21,9 @@ BUILD_ONLY=0
 for arg in "$@"; do
     case "$arg" in
         --build-only) BUILD_ONLY=1 ;;
+        # sigmond's align and manifest restore pass --yes to every
+        # installer, as bring-up does.  This one never prompts.
+        --yes|-y) ;;
         *) echo "unknown arg: $arg" >&2; exit 2 ;;
     esac
 done

@@ -75,11 +75,14 @@ if [[ ! -x "${INSTALL_DIR}/venv/bin/python3" ]]; then
 fi
 
 # uv sync reads pyproject.toml + uv.lock + [tool.uv.sources] (siblings),
-# producing the editable install in one shot.  --frozen would require a
-# committed uv.lock; we omit it during scaffolding so the first install
-# resolves freely.
+# producing the editable install in one shot.  --frozen installs exactly the
+# committed uv.lock and never rewrites it.  Without it, uv rewrote the lock on
+# every station whose sibling ka9q-python had moved on, and smd doctor then
+# reported the checkout dirty (v3.73 update test, 2026-10-19).  Regenerate the
+# lock with `uv lock` when the siblings or the dependencies shift.
 UV_PROJECT_ENVIRONMENT="${INSTALL_DIR}/venv" uv sync \
     --project "${REPO_ROOT}" \
+    --frozen \
     --no-dev \
     --quiet
 chown -R "${USER}:${GROUP}" "${INSTALL_DIR}/venv"

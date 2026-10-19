@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 
 [[package]]
@@ -79,7 +79,7 @@ wheels = [
 
 [[package]]
 name = "ka9q-python"
-version = "3.26.0"
+version = "3.26.1"
 source = { editable = "../ka9q-python" }
 dependencies = [
     { name = "numpy" },

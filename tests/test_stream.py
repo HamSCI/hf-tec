@@ -227,3 +227,22 @@ class TestAnchorKeptForTheReport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAgcPolicy(unittest.TestCase):
+    """Policy 2026-10-23: no per-channel AGC.  The `iq` preset defaults to
+    agc=yes, so the request must carry agc_enable=0 and gain 0 dB."""
+
+    def test_channel_request_sends_agc_off_and_zero_gain(self):
+        from unittest import mock
+        src = _source()
+        control = mock.Mock()
+        with mock.patch.object(
+            HfTecSource, "_import_ka9q",
+            return_value=(mock.Mock(return_value=control),
+                          mock.Mock(side_effect=RuntimeError("stop")))):
+            with self.assertRaises(RuntimeError):
+                src.open()
+        kw = control.ensure_channel.call_args.kwargs
+        self.assertEqual(kw.get("agc_enable"), 0)
+        self.assertEqual(kw.get("gain"), 0.0)

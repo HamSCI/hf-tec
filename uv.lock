@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.11"
 
 [[package]]
@@ -46,6 +46,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "hamsci-dsp" },
+    { name = "hs-uploader" },
     { name = "ka9q-python" },
     { name = "numpy" },
     { name = "scipy" },
@@ -60,6 +61,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "hamsci-dsp", editable = "../hamsci-dsp" },
+    { name = "hs-uploader", editable = "../hs-uploader" },
     { name = "ka9q-python", editable = "../ka9q-python" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
@@ -67,6 +69,20 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.10" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "hs-uploader"
+version = "0.1.0"
+source = { editable = "../hs-uploader" }
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", marker = "extra == 'http'", specifier = ">=0.27" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pytest-httpserver", marker = "extra == 'dev'", specifier = ">=1.0" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0" },
+]
+provides-extras = ["psws", "wsprnet", "wsprdaemon", "pskreporter", "http", "dev"]
 
 [[package]]
 name = "iniconfig"

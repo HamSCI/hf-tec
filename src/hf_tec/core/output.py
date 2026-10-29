@@ -214,19 +214,24 @@ class _JsonlWriter:
 
 class _HamsciSinkWriter:
     """Inserts rows into a named HamSCI sink table via
-    ``sigmond.hamsci_sink.Writer``.
+    ``hs_uploader.sink.Writer``.
 
-    Lazy-imports `sigmond.hamsci_sink` so the package remains usable
-    when sigmond isn't installed (silent no-op).
+    Lazy-imports `hs_uploader.sink` (falling back to `sigmond.hamsci_sink`
+    for one release) so the package remains usable when neither is
+    installed (silent no-op).
     """
 
     def __init__(self, table: str = "hf_tec.spots") -> None:
         self._writer = None
         self._table = table
         try:
-            from sigmond.hamsci_sink import Writer  # type: ignore[import-not-found]
+            try:
+                from hs_uploader.sink import Writer  # type: ignore[import-not-found]
+            except ImportError:
+                # Fallback for one release: sigmond's older import name.
+                from sigmond.hamsci_sink import Writer  # type: ignore[import-not-found]
         except Exception:
-            logger.info("sigmond.hamsci_sink not available; %s disabled", table)
+            logger.info("hs_uploader.sink not available; %s disabled", table)
             return
         try:
             self._writer = Writer.from_env(table=table)

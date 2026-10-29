@@ -36,7 +36,7 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 NoNewPrivileges=true
-ReadWritePaths=/var/lib/hf-tec /var/log/hf-tec /var/lib/sigmond
+ReadWritePaths=/var/lib/hf-tec /var/log/hf-tec -/var/lib/hs-uploader -/var/lib/sigmond
 RuntimeDirectory=hf-tec
 RuntimeDirectoryMode=0750
 

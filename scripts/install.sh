@@ -74,6 +74,14 @@ if [[ ! -x "${INSTALL_DIR}/venv/bin/python3" ]]; then
     chown -R "${USER}:${GROUP}" "${INSTALL_DIR}/venv"
 fi
 
+# hs-uploader supplies the sink writer and is a path-based editable sibling
+# in [tool.uv.sources] (../hs-uploader); uv sync needs it on disk.
+if [[ ! -f "$(dirname "${REPO_ROOT}")/hs-uploader/pyproject.toml" ]]; then
+    echo "hs-uploader sibling not at $(dirname "${REPO_ROOT}")/hs-uploader -- cloning"
+    git clone https://github.com/HamSCI/hs-uploader "$(dirname "${REPO_ROOT}")/hs-uploader" \
+        || { echo "error: failed to clone hs-uploader" >&2; exit 1; }
+fi
+
 # uv sync reads pyproject.toml + uv.lock + [tool.uv.sources] (siblings),
 # producing the editable install in one shot.  --frozen installs exactly the
 # committed uv.lock and never rewrites it.  Without it, uv rewrote the lock on

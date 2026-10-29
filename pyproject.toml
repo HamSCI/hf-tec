@@ -27,6 +27,7 @@ dependencies = [
     "scipy>=1.10",
     "ka9q-python>=3.26.0",
     "hamsci-dsp>=0.8.0",
+    "hs-uploader>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,7 @@ hf-tec = "hf_tec.cli:main"
 [tool.uv.sources]
 ka9q-python = { path = "../ka9q-python", editable = true }
 hamsci-dsp = { path = "../hamsci-dsp", editable = true }
+hs-uploader = { path = "../hs-uploader", editable = true }
 
 [tool.setuptools.packages.find]
 where = ["src"]

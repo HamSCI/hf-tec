@@ -20,7 +20,7 @@ the receive-side implementation.
 
 ## Contents
 
-1. [The Hysell network](#1-the-hysell-network)
+1. [The beacon network](#1-the-beacon-network)
 2. [Signal waveform](#2-signal-waveform)
 3. [Receiver DSP chain](#3-receiver-dsp-chain)
 4. [Observables and output schema](#4-observables-and-output-schema)
